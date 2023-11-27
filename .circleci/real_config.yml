@@ -2592,6 +2592,7 @@ workflows:
       - test-intg-master:
           context: storage-unit-tests
       - test-intg-agent
+
       - go-coverage:
           requires:
             - test-intg-master
@@ -2602,6 +2603,44 @@ workflows:
       - check-go-coverage-agent:
           requires:
             - go-coverage
+
+  test-go-flake:
+    jobs:
+      - test-intg-master:
+          context: storage-unit-tests
+  test-go-flake2:
+    jobs:
+    - test-intg-master:
+        context: storage-unit-tests
+  test-go-flake3:
+    jobs:
+    - test-intg-master:
+        context: storage-unit-tests
+  test-go-flake4:
+    jobs:
+    - test-intg-master:
+        context: storage-unit-tests
+  test-go-flake5:
+    jobs:
+    - test-intg-master:
+        context: storage-unit-tests
+  test-go-flake6:
+    jobs:
+    - test-intg-master:
+        context: storage-unit-tests
+  test-go-flake7:
+    jobs:
+    - test-intg-master:
+        context: storage-unit-tests
+  test-go-flake8:
+    jobs:
+    - test-intg-master:
+        context: storage-unit-tests
+  test-go-flake9:
+    jobs:
+    - test-intg-master:
+        context: storage-unit-tests
+      
 
   test-e2e:
     jobs:
