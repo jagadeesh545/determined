@@ -1537,6 +1537,39 @@ Security-related configuration settings.
       certificate is not signed by a well-known CA; cannot be specified if ``skip_verify`` is
       enabled.
 
+***********************
+ ``logging_retention``
+***********************
+
+Specifies configuration settings for the logging retention of trial logs.
+
+``days``
+========
+
+Number of days to retain logs for by default. This can be overridden on a per-experiment basis in
+the :ref:`experiment configuration <log-retention-days>`.
+
+``schedule``
+============
+
+Schedule for cleaning up logs. Can be provided as a cron expression or a duration string.
+
+For example, to schedule cleanup for midnight every day:
+
+   .. code:: yaml
+
+      logging_retention:
+         days: 90
+         schedule: "0 0 * * *"
+
+or to schedule cleanup every 24 hours from start:
+
+   .. code:: yaml
+
+      logging_retention:
+         days: 90
+         schedule: "24h"
+
 **********
  ``scim``
 **********
