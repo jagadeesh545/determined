@@ -79,22 +79,6 @@ pytorch19_tf25_rocm_0_versioned: {new: determinedai/environments:rocm-5.0-pytorc
   old: determinedai/environments:rocm-4.2-pytorch-1.9-tf-2.5-rocm-0.18.5}
 pytorch19_tf25_rocm_1_hashed: {new: determinedai/environments:rocm-5.0-pytorch-1.10-tf-2.7-rocm-096d730}
 pytorch19_tf25_rocm_1_versioned: {new: determinedai/environments:rocm-5.0-pytorch-1.10-tf-2.7-rocm-0.19.4}
-tf1_cpu_0_hashed: {new: determinedai/environments:py-3.7-pytorch-1.7-tf-1.15-cpu-6eceaca,
-  old: determinedai/environments:py-3.7-pytorch-1.7-tf-1.15-cpu-a8b9c02}
-tf1_cpu_0_versioned: {new: determinedai/environments:py-3.7-pytorch-1.7-tf-1.15-cpu-0.21.2,
-  old: determinedai/environments:py-3.7-pytorch-1.7-tf-1.15-cpu-0.21.1}
-tf1_cpu_1_hashed: {new: determinedai/environments:py-3.7-pytorch-1.7-tf-1.15-cpu-mpi-6eceaca,
-  old: determinedai/environments:py-3.7-pytorch-1.7-tf-1.15-cpu-mpi-a8b9c02}
-tf1_cpu_1_versioned: {new: determinedai/environments:py-3.7-pytorch-1.7-tf-1.15-cpu-mpi-0.21.2,
-  old: determinedai/environments:py-3.7-pytorch-1.7-tf-1.15-cpu-mpi-0.21.1}
-tf1_gpu_0_hashed: {new: determinedai/environments:cuda-10.2-pytorch-1.7-tf-1.15-gpu-6eceaca,
-  old: determinedai/environments:cuda-10.2-pytorch-1.7-tf-1.15-gpu-a8b9c02}
-tf1_gpu_0_versioned: {new: determinedai/environments:cuda-10.2-pytorch-1.7-tf-1.15-gpu-0.21.2,
-  old: determinedai/environments:cuda-10.2-pytorch-1.7-tf-1.15-gpu-0.21.1}
-tf1_gpu_1_hashed: {new: determinedai/environments:cuda-10.2-pytorch-1.7-tf-1.15-gpu-mpi-6eceaca,
-  old: determinedai/environments:cuda-10.2-pytorch-1.7-tf-1.15-gpu-mpi-a8b9c02}
-tf1_gpu_1_versioned: {new: determinedai/environments:cuda-10.2-pytorch-1.7-tf-1.15-gpu-mpi-0.21.2,
-  old: determinedai/environments:cuda-10.2-pytorch-1.7-tf-1.15-gpu-mpi-0.21.1}
 tf24_cpu_0_hashed: {new: determinedai/environments:py-3.8-pytorch-1.9-tf-2.4-cpu-24586f0,
   old: determinedai/environments-dev:py-3.8-pytorch-1.9-tf-2.4-cpu-1c769fb}
 tf24_cpu_0_versioned: {new: determinedai/environments:py-3.8-pytorch-1.9-tf-2.4-cpu-0.19.10,
