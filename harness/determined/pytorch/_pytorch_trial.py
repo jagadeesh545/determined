@@ -11,10 +11,11 @@ import time
 import warnings
 from abc import abstractmethod
 from inspect import signature
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Type, Union, cast
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
+import torch.utils.data
 from torch import distributed as dist
 
 import determined as det
@@ -31,7 +32,7 @@ except ImportError:  # pragma: no cover
     pass
 
 
-def dataloader_next(profiler: det.profiler.ProfilerAgent, dataloader_iter: Iterator) -> Iterator:
+def dataloader_next(profiler: profiler.ProfilerAgent, dataloader_iter: Iterator) -> Iterator:
     while True:
         try:
             with profiler.record_timing("dataloader_next", requires_sync=False):
@@ -105,8 +106,8 @@ class TrainUnit:
     def should_stop(self, step_num: int) -> bool:
         if isinstance(self.value, int):
             return self._divides(step_num)
-        if isinstance(self.value, collections.Container):
-            return step_num in self.value
+        assert isinstance(self.value, collections.Container)
+        return step_num in self.value
 
     def _divides(self, steps: int) -> bool:
         assert isinstance(steps, int) and isinstance(
@@ -349,7 +350,7 @@ class _PyTorchTrialController:
 
         assert self.state
         if self.context.get_enable_tensorboard_logging():
-            det.pytorch._log_tb_metrics(
+            pytorch._log_tb_metrics(
                 self.context.get_tensorboard_writer(),
                 "train",
                 self.state.batches_trained,
@@ -505,6 +506,15 @@ class _PyTorchTrialController:
                 self.validation_loader = validation_data
 
     def _step_batch(self) -> None:
+        """Adjusts counters / executes callbacks after training on a batch.
+
+        Specifically,
+        1. Increments in self.state the number of batches trained
+        2. When an epoch is complete (as determined by epoch_len):
+            a. Performs epoch-end actions. Namely, this executes all the callbacks
+               (stored in self.callbacks) that happen when an epoch is finished.
+            b. Increments in self.state the number of epochs trained
+        """
         assert self.state
         self.state.batches_trained += 1
 
@@ -874,7 +884,9 @@ class _PyTorchTrialController:
             return False
         return self.context._should_communicate_and_update()
 
-    def _train_batch(self, batch: pytorch.TorchData, epoch_idx: int, batch_idx: int) -> Dict:
+    def _train_batch(
+        self, batch: pytorch.TorchData, epoch_idx: int, batch_idx: int
+    ) -> Dict[str, Any]:
         # Reset loss IDs for AMP
         self.context._loss_ids = {}
 
@@ -931,11 +943,6 @@ class _PyTorchTrialController:
         samples_per_second *= self.context.distributed.size
         self.prof.record_metric("samples_per_second", samples_per_second)
 
-        if not isinstance(training_metrics, Dict):
-            raise TypeError(
-                f"train_batch() must return a dictionary mapping string names to Tensor metrics, "
-                f"got {type(training_metrics).__name__}"
-            )
         return training_metrics
 
     @torch.no_grad()  # type: ignore
@@ -964,11 +971,10 @@ class _PyTorchTrialController:
             batch_metrics = []
 
             assert isinstance(self.validation_loader, torch.utils.data.DataLoader)
-            if len(self.validation_loader) == 0:
-                raise RuntimeError("validation_loader is empty.")
             for callback in self.callbacks.values():
                 callback.on_validation_epoch_start()
 
+            idx = None
             for idx, batch in enumerate(iter(self.validation_loader)):
                 if self.context.experimental._auto_to_device:
                     with self.prof.record_timing("to_device", accumulate=True):
@@ -1000,6 +1006,9 @@ class _PyTorchTrialController:
                 if self.test_mode:
                     break
 
+            if idx is None:
+                raise RuntimeError("validation_loader is empty.")
+
             for callback in self.callbacks.values():
                 callback.on_validation_epoch_end(batch_metrics)
 
@@ -1012,16 +1021,9 @@ class _PyTorchTrialController:
                 ),
             )
 
-            # Gather a list of per-worker (num_inputs, num_batches) tuples.
-            input_counts = self.context.distributed.gather((num_inputs, idx + 1))
-            if self.is_chief:
-                assert input_counts is not None
-                # Reshape and sum.
-                num_inputs, num_batches = [sum(n) for n in zip(*input_counts)]
-
         else:
             assert self._evaluate_full_dataset_defined(), "evaluate_full_dataset not defined."
-            self.validation_loader = cast(torch.utils.data.DataLoader, self.validation_loader)
+            assert self.validation_loader is not None
             if self.is_chief:
                 metrics = self.trial.evaluate_full_dataset(data_loader=self.validation_loader)
 
@@ -1031,7 +1033,6 @@ class _PyTorchTrialController:
                     )
 
                 metrics = pytorch._convert_metrics_to_numpy(metrics)
-                num_inputs = self.context.get_per_slot_batch_size() * len(self.validation_loader)
 
         metrics.update(
             pytorch._convert_metrics_to_numpy(self.context.reduce_metrics(for_training=False))
@@ -1059,12 +1060,18 @@ class _PyTorchTrialController:
             # common than evaluate_batch() and we can't know how the user processed their
             # validation data.
             if self._evaluate_batch_defined():
+                # Gather a list of per-worker (num_inputs, num_batches) tuples.
+                input_counts = self.context.distributed.gather((num_inputs, idx + 1))
+                # Reshape and sum.
+                inputs_total, batches_total = [sum(n) for n in zip(*input_counts)]
                 step_duration = time.time() - step_start_time
                 logger.info(
-                    det.util.make_timing_log("validated", step_duration, num_inputs, num_batches)
+                    det.util.make_timing_log(
+                        "validated", step_duration, inputs_total, batches_total
+                    )
                 )
             if self.context.get_enable_tensorboard_logging():
-                det.pytorch._log_tb_metrics(
+                pytorch._log_tb_metrics(
                     self.context.get_tensorboard_writer(),
                     "val",
                     self.state.batches_trained,
@@ -1580,6 +1587,7 @@ class PyTorchTrial(det.LegacyTrial):
         """
         return {}
 
+    @abstractmethod
     def evaluate_batch(self, batch: pytorch.TorchData, batch_idx: int) -> Dict[str, Any]:
         """
         Calculate validation metrics for a batch and return them as a
