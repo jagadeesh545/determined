@@ -612,7 +612,7 @@ func trace(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Error(err)
 		}
 		r := c.Request()
-		fmt.Println("%s %s, %d bytes", r.Method, r.URL.String(), r.ContentLength)
+		fmt.Printf("%s %s, %d bytes\n", r.Method, r.URL.String(), r.ContentLength)
 		return nil
 	}
 }
