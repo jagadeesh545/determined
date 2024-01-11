@@ -611,7 +611,7 @@ func trace(next echo.HandlerFunc) echo.HandlerFunc {
 		if err := next(c); err != nil {
 			c.Error(err)
 		}
-		r = c.Request()
+		r := c.Request()
 		fmt.Println("%s %s, %d bytes", r.Method, r.URL.String(), r.ContentLength)
 		return nil
 	}
