@@ -606,6 +606,17 @@ func (m *Master) findListeningPort(listener net.Listener) (uint16, error) {
 	return 0, errors.New("listener not found")
 }
 
+func trace(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		if err := next(c); err != nil {
+			c.Error(err)
+		}
+		r = c.Request()
+		fmt.Println("%s %s, %d bytes", r.Method, r.URL.String(), r.ContentLength)
+		return nil
+	}
+}
+
 func (m *Master) startServers(ctx context.Context, cert *tls.Certificate, gRPCLogInitDone chan struct{}) error {
 	// Create the base socket listener by either fetching one passed to us from systemd or creating a
 	// TCP listener manually.
@@ -659,6 +670,8 @@ func (m *Master) startServers(ctx context.Context, cert *tls.Certificate, gRPCLo
 			ClientAuth:               clientAuthMode,
 		})
 	}
+
+	m.echo.Use(trace)
 
 	// This must be before grpcutil.RegisterHTTPProxy is called since it may use stuff set up by the
 	// gRPC server (logger initialization, maybe more). Found by --race.
