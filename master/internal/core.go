@@ -612,7 +612,7 @@ func trace(next echo.HandlerFunc) echo.HandlerFunc {
 			c.Error(err)
 		}
 		r := c.Request()
-		log.Infof("API: %s %s, %d bytes\n", r.Method, r.URL.String(), r.ContentLength)
+		log.Infof("API: %s -> %s %s, %d bytes\n", r.RemoteAddr, r.Method, r.URL.String(), r.ContentLength)
 		return nil
 	}
 }
