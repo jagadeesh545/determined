@@ -1715,6 +1715,12 @@ export interface V1Checkpoint {
      * @memberof V1Checkpoint
      */
     training: V1CheckpointTrainingMetadata;
+    /**
+     * Optional ID that describes where this checkpoint is stored.
+     * @type {number}
+     * @memberof V1Checkpoint
+     */
+    storageId?: number;
 }
 /**
  * Request to delete files matching globs in checkpoints.
@@ -8877,6 +8883,38 @@ export const V1RunnableType = {
     VALIDATE: 'RUNNABLE_TYPE_VALIDATE',
 } as const
 export type V1RunnableType = ValueOf<typeof V1RunnableType>
+/**
+ * Request to prepare to start reporting to a run.
+ * @export
+ * @interface V1RunPrepareForReportRequest
+ */
+export interface V1RunPrepareForReportRequest {
+    /**
+     * RunID to sync to.
+     * @type {number}
+     * @memberof V1RunPrepareForReportRequest
+     */
+    runId: number;
+    /**
+     * Checkpoint storage config.
+     * @type {any}
+     * @memberof V1RunPrepareForReportRequest
+     */
+    checkpointStorage?: any;
+}
+/**
+ * Response to prepare to start reporting to a run.
+ * @export
+ * @interface V1RunPrepareForReportResponse
+ */
+export interface V1RunPrepareForReportResponse {
+    /**
+     * The storage_id to be used when creating new checkpoints. This will be returned always when checkpoint storage is set in the request.
+     * @type {number}
+     * @memberof V1RunPrepareForReportResponse
+     */
+    storageId?: number;
+}
 /**
  * The type of the Scheduler.   - SCHEDULER_TYPE_UNSPECIFIED: Unspecified. This value will never actually be returned by the API, it is just an artifact of using protobuf.  - SCHEDULER_TYPE_PRIORITY: The priority scheduler.  - SCHEDULER_TYPE_FAIR_SHARE: The fair share scheduler.  - SCHEDULER_TYPE_ROUND_ROBIN: The round robin scheduler  - SCHEDULER_TYPE_KUBERNETES: The kubernetes scheduler.  - SCHEDULER_TYPE_SLURM: A slurm placeholder. When running on slurm, all scheduling behavior is delegated.  - SCHEDULER_TYPE_PBS: A PBS placeholder. When running on PBS, all scheduling behavior is delegated.
  * @export
@@ -19383,6 +19421,44 @@ export const InternalApiFetchParamCreator = function (configuration?: Configurat
         },
         /**
          * 
+         * @summary Start syncing and prepare to be able to report to a run. This should be called once per task that will report to the run.
+         * @param {V1RunPrepareForReportRequest} body
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        runPrepareForReport(body: V1RunPrepareForReportRequest, options: any = {}): FetchArgs {
+            // verify required parameter 'body' is not null or undefined
+            if (body === null || body === undefined) {
+                throw new RequiredError('body','Required parameter body was null or undefined when calling runPrepareForReport.');
+            }
+            const localVarPath = `/api/v1/runs/start`;
+            const localVarUrlObj = new URL(localVarPath, BASE_PATH);
+            const localVarRequestOptions = { method: 'POST', ...options };
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+            
+            // authentication BearerToken required
+            if (configuration && configuration.apiKey) {
+                const localVarApiKeyValue = typeof configuration.apiKey === 'function'
+                    ? configuration.apiKey("Authorization")
+                    : configuration.apiKey;
+                localVarHeaderParameter["Authorization"] = localVarApiKeyValue;
+            }
+            
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            
+            objToSearchParams(localVarQueryParameter, localVarUrlObj.searchParams);
+            objToSearchParams(options.query || {}, localVarUrlObj.searchParams);
+            localVarRequestOptions.headers = { ...localVarHeaderParameter, ...options.headers };
+            localVarRequestOptions.body = JSON.stringify(body)
+            
+            return {
+                url: `${localVarUrlObj.pathname}${localVarUrlObj.search}`,
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Get experiments with grouping and search syntax
          * @param {number} [projectId] ID of the project to look at.
          * @param {number} [offset] How many experiments to skip before including in the results.
@@ -20891,6 +20967,25 @@ export const InternalApiFp = function (configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Start syncing and prepare to be able to report to a run. This should be called once per task that will report to the run.
+         * @param {V1RunPrepareForReportRequest} body
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        runPrepareForReport(body: V1RunPrepareForReportRequest, options?: any): (fetch?: FetchAPI, basePath?: string) => Promise<V1RunPrepareForReportResponse> {
+            const localVarFetchArgs = InternalApiFetchParamCreator(configuration).runPrepareForReport(body, options);
+            return (fetch: FetchAPI = window.fetch, basePath: string = BASE_PATH) => {
+                return fetch(basePath + localVarFetchArgs.url, localVarFetchArgs.options).then((response) => {
+                    if (response.status >= 200 && response.status < 300) {
+                        return response.json();
+                    } else {
+                        throw response;
+                    }
+                });
+            };
+        },
+        /**
+         * 
          * @summary Get experiments with grouping and search syntax
          * @param {number} [projectId] ID of the project to look at.
          * @param {number} [offset] How many experiments to skip before including in the results.
@@ -21667,6 +21762,16 @@ export const InternalApiFactory = function (configuration?: Configuration, fetch
          */
         reportTrialValidationMetrics(validationMetricsTrialId: number, body: V1TrialMetrics, options?: any) {
             return InternalApiFp(configuration).reportTrialValidationMetrics(validationMetricsTrialId, body, options)(fetch, basePath);
+        },
+        /**
+         * 
+         * @summary Start syncing and prepare to be able to report to a run. This should be called once per task that will report to the run.
+         * @param {V1RunPrepareForReportRequest} body
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        runPrepareForReport(body: V1RunPrepareForReportRequest, options?: any) {
+            return InternalApiFp(configuration).runPrepareForReport(body, options)(fetch, basePath);
         },
         /**
          * 
@@ -22495,6 +22600,18 @@ export class InternalApi extends BaseAPI {
      */
     public reportTrialValidationMetrics(validationMetricsTrialId: number, body: V1TrialMetrics, options?: any) {
         return InternalApiFp(this.configuration).reportTrialValidationMetrics(validationMetricsTrialId, body, options)(this.fetch, this.basePath)
+    }
+    
+    /**
+     * 
+     * @summary Start syncing and prepare to be able to report to a run. This should be called once per task that will report to the run.
+     * @param {V1RunPrepareForReportRequest} body
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof InternalApi
+     */
+    public runPrepareForReport(body: V1RunPrepareForReportRequest, options?: any) {
+        return InternalApiFp(this.configuration).runPrepareForReport(body, options)(this.fetch, this.basePath)
     }
     
     /**
