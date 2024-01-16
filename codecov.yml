@@ -35,3 +35,7 @@ github_checks:
 comment: 
   layout: "diff, flags, files"
   behavior: default
+
+parsers:
+  go:
+    partials_as_hits: true
