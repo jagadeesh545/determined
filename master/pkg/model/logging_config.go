@@ -93,15 +93,15 @@ type LogRetentionPolicy struct {
 }
 
 var (
-	errLogRetentionDaysNegative  = errors.New("log retention days must be non-negative")
+	errLogRetentionDaysParse     = errors.New("log retention days must be between -1 and 32767")
 	errLogRetentionScheduleParse = errors.New("log retention schedule must be a valid duration or cron expression")
 )
 
 // Validate implements the check.Validatable interface.
 func (p LogRetentionPolicy) Validate() []error {
 	var errs []error
-	if p.Days != nil && *p.Days < 0 {
-		errs = append(errs, errLogRetentionDaysNegative)
+	if p.Days != nil && *p.Days < -1 {
+		errs = append(errs, errLogRetentionDaysParse)
 	}
 	if p.Schedule != nil {
 		if _, err := time.ParseDuration(*p.Schedule); err != nil {

@@ -87,6 +87,7 @@ func Schedule(config model.LogRetentionPolicy) error {
 // DeleteExpiredTaskLogs deletes task logs older than days time when defined and non-negative.
 // Task configured values may override the default provided number of days for retention.
 func DeleteExpiredTaskLogs(days *int16) (int64, error) {
+	// If days is nil, use the default value of -1 to retain logs forever.
 	var defaultLogRetentionDays int16 = retainForever
 	if days != nil {
 		defaultLogRetentionDays = *days
