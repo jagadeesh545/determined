@@ -16,7 +16,9 @@ func (a *apiServer) CleanupLogs(
 	if err != nil {
 		return nil, err
 	}
-
+	// Check if the user has permission to update the server config, then they should be able to
+	// change the schedule and cleanup logs immediately.
+	// TODO: Update to IsClusterAdmin eventually.
 	permErr, err := cluster.AuthZProvider.Get().CanUpdateMasterConfig(ctx, u)
 	if err != nil {
 		return nil, err
