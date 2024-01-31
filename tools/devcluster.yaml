@@ -51,8 +51,8 @@ stages:
         logging:
           type: default
         logging_retention:
-          days: 1
-          schedule: 1m
+          days: 7
+          schedule: 60m
         enable_cors: true
         observability:
           enable_prometheus: true
