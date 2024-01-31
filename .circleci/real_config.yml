@@ -51,7 +51,7 @@ parameters:
     default: v1dev25
   gke-version:
     type: string
-    default: "1.25.10"
+    default: "1.29.0"
   master-build-resource-class:
     type: string
     default: xlarge
@@ -2319,9 +2319,9 @@ jobs:
     parallelism: <<parameters.parallelism>>
     steps:
       - checkout
-      - skip-if-docs-only
-      - skip-if-github-only
-      - skip-if-webui-only
+      # - skip-if-docs-only
+      # - skip-if-github-only
+      # - skip-if-webui-only
       - set-slack-user-id
       - setup-python-venv:
           install-python: false
@@ -2640,10 +2640,10 @@ workflows:
           requires:
             - build-react
             - build-docs
-          filters:
-            branches:
-              only:
-                - main
+          # filters:
+          #   branches:
+          #     only:
+          #       - main
 
       - upload-docs-search-index:
           requires:
@@ -2815,9 +2815,9 @@ workflows:
       - test-e2e-gke:
           name: test-e2e-gke-single-gpu
           context: gcp-ci
-          filters:
-            branches:
-              only: main
+          # filters:
+          #   branches:
+          #     only: main
           requires:
             - package-and-push-system-dev
           matrix:
@@ -2830,9 +2830,9 @@ workflows:
       - test-e2e-gke:
           name: test-e2e-gke-parallel
           context: gcp-ci
-          filters:
-            branches:
-              only: main
+          # filters:
+          #   branches:
+          #     only: main
           requires:
             - package-and-push-system-dev
           matrix:
@@ -2849,9 +2849,9 @@ workflows:
       - test-e2e-gke:
           name: test-e2e-gke-single-gpu-tfonly
           context: gcp-ci
-          filters:
-            branches:
-              only: main
+          # filters:
+          #   branches:
+          #     only: main
           requires:
             - package-and-push-system-dev
           matrix:
@@ -2866,9 +2866,9 @@ workflows:
       - test-e2e-gke:
           name: test-e2e-gke-single-cpu
           context: gcp-ci
-          filters:
-            branches:
-              only: main
+          # filters:
+          #   branches:
+          #     only: main
           requires:
             - package-and-push-system-dev
           matrix:
@@ -2886,9 +2886,9 @@ workflows:
       - test-e2e-gke:
           name: test-e2e-gke-k8s-reattach
           context: gcp-ci
-          filters:
-            branches:
-              only: main
+          # filters:
+          #   branches:
+          #     only: main
           requires:
             - package-and-push-system-dev
           matrix:
