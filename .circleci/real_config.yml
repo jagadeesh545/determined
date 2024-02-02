@@ -1014,6 +1014,7 @@ commands:
             done
 
             echo "export USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> $BASH_ENV
+            echo "gcloud config get-value project"
           name: Install GKE auth plugin
       - run:
           name: Get Kubeconfig
