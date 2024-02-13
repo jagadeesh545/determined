@@ -25,7 +25,7 @@ const (
 func DefaultOptions() *Options {
 	return &Options{
 		Log: logger.Config{
-			Level: "debug",
+			Level: "trace",
 			Color: true,
 		},
 		SlotType:               "auto",
