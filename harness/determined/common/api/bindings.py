@@ -14056,37 +14056,41 @@ class v1TrialLogsResponse(Printable):
 
 class v1TrialMetrics(Printable):
     """Metrics from the trial some duration of training."""
+    stepsCompleted: "typing.Optional[int]" = None
 
     def __init__(
         self,
         *,
         metrics: "v1Metrics",
-        stepsCompleted: int,
         trialId: int,
         trialRunId: int,
+        stepsCompleted: "typing.Union[int, None, Unset]" = _unset,
     ):
         self.metrics = metrics
-        self.stepsCompleted = stepsCompleted
         self.trialId = trialId
         self.trialRunId = trialRunId
+        if not isinstance(stepsCompleted, Unset):
+            self.stepsCompleted = stepsCompleted
 
     @classmethod
     def from_json(cls, obj: Json) -> "v1TrialMetrics":
         kwargs: "typing.Dict[str, typing.Any]" = {
             "metrics": v1Metrics.from_json(obj["metrics"]),
-            "stepsCompleted": obj["stepsCompleted"],
             "trialId": obj["trialId"],
             "trialRunId": obj["trialRunId"],
         }
+        if "stepsCompleted" in obj:
+            kwargs["stepsCompleted"] = obj["stepsCompleted"]
         return cls(**kwargs)
 
     def to_json(self, omit_unset: bool = False) -> typing.Dict[str, typing.Any]:
         out: "typing.Dict[str, typing.Any]" = {
             "metrics": self.metrics.to_json(omit_unset),
-            "stepsCompleted": self.stepsCompleted,
             "trialId": self.trialId,
             "trialRunId": self.trialRunId,
         }
+        if not omit_unset or "stepsCompleted" in vars(self):
+            out["stepsCompleted"] = self.stepsCompleted
         return out
 
 class v1TrialOperation(Printable):
