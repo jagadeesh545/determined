@@ -52,7 +52,7 @@ var (
 // called twice for the same resource, etc).
 func MockRM() *mocks.ResourceManager {
 	var mockRM mocks.ResourceManager
-	mockRM.On("DeleteJob", mock.Anything).Return(func(sproto.DeleteJob) sproto.DeleteJobResponse {
+	mockRM.On("DeleteJob", mock.Anything).Return(func(model.JobID) sproto.DeleteJobResponse {
 		return sproto.EmptyDeleteJobResponse()
 	}, nil)
 	mockRM.On("ResolveResourcePool", mock.Anything, mock.Anything, mock.Anything).Return(
@@ -63,11 +63,7 @@ func MockRM() *mocks.ResourceManager {
 	)
 	mockRM.On("ValidateResources", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mockRM.On("TaskContainerDefaults", mock.Anything, mock.Anything).Return(
-		func(name string, def model.TaskContainerDefaultsConfig) model.TaskContainerDefaultsConfig {
-			return def
-		},
-		nil,
-	)
+		model.TaskContainerDefaultsConfig{}, nil)
 	mockRM.On("ValidateResourcePoolAvailability", mock.Anything).Return(nil, nil)
 	mockRM.On("SetGroupMaxSlots", mock.Anything).Return()
 	mockRM.On("SetGroupWeight", mock.Anything).Return(nil)

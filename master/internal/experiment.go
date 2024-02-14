@@ -133,6 +133,7 @@ func newExperiment(
 			return nil, nil, errors.New("slots requested exceeds cluster capacity")
 		}
 	}
+	// TODO (multirm) SetResourceManager, once master.ResolveResourcePool() has the right signature.
 	resources.SetResourcePool(poolName)
 
 	activeConfig.SetResources(resources)

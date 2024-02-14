@@ -153,7 +153,7 @@ func TestAllocation(t *testing.T) {
 			}
 
 			// Terminating stage.
-			rm.On("Release", mock.Anything, mock.Anything).Return(nil)
+			rm.On("Release", mock.Anything).Return(nil)
 			for _, r := range resources {
 				summary := r.Summary()
 				containerStateChanged := sproto.ResourcesStateChanged{

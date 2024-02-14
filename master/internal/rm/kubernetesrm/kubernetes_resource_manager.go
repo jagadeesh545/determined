@@ -161,13 +161,13 @@ func (k *ResourceManager) Allocate(msg sproto.AllocateRequest) (*sproto.Resource
 }
 
 // DeleteJob implements rm.ResourceManager.
-func (ResourceManager) DeleteJob(sproto.DeleteJob) (sproto.DeleteJobResponse, error) {
+func (ResourceManager) DeleteJob(model.JobID) (sproto.DeleteJobResponse, error) {
 	// For now, there is nothing to clean up in k8s.
 	return sproto.EmptyDeleteJobResponse(), nil
 }
 
 // ExternalPreemptionPending implements rm.ResourceManager.
-func (ResourceManager) ExternalPreemptionPending(sproto.PendingPreemption) error {
+func (ResourceManager) ExternalPreemptionPending(model.AllocationID) error {
 	return rmerrors.ErrNotSupported
 }
 
@@ -177,58 +177,56 @@ func (k *ResourceManager) GetAgent(msg *apiv1.GetAgentRequest) (*apiv1.GetAgentR
 }
 
 // GetAgents implements rm.ResourceManager.
-func (k *ResourceManager) GetAgents(msg *apiv1.GetAgentsRequest) (*apiv1.GetAgentsResponse, error) {
-	return k.podsService.GetAgents(msg), nil
+func (k *ResourceManager) GetAgents() (*apiv1.GetAgentsResponse, error) {
+	return k.podsService.GetAgents(), nil
 }
 
 // GetAllocationSummaries implements rm.ResourceManager.
-func (k *ResourceManager) GetAllocationSummaries(
-	msg sproto.GetAllocationSummaries,
-) (map[model.AllocationID]sproto.AllocationSummary, error) {
+func (k *ResourceManager) GetAllocationSummaries() (map[model.AllocationID]sproto.AllocationSummary, error) {
 	summaries := make(map[model.AllocationID]sproto.AllocationSummary)
 	for _, rp := range k.pools {
-		rpSummaries := rp.GetAllocationSummaries(msg)
+		rpSummaries := rp.GetAllocationSummaries()
 		maps.Copy(summaries, rpSummaries)
 	}
 	return summaries, nil
 }
 
 // GetDefaultAuxResourcePool implements rm.ResourceManager.
-func (k *ResourceManager) GetDefaultAuxResourcePool(
-	sproto.GetDefaultAuxResourcePoolRequest,
-) (sproto.GetDefaultAuxResourcePoolResponse, error) {
+func (k *ResourceManager) GetDefaultAuxResourcePool() (sproto.GetDefaultAuxResourcePoolResponse, error) {
 	if k.config.DefaultComputeResourcePool == "" {
 		return sproto.GetDefaultAuxResourcePoolResponse{}, rmerrors.ErrNoDefaultResourcePool
 	}
-	return sproto.GetDefaultAuxResourcePoolResponse{PoolName: k.config.DefaultAuxResourcePool}, nil
+	return sproto.GetDefaultAuxResourcePoolResponse{
+		PoolName: k.config.DefaultAuxResourcePool,
+	}, nil
 }
 
 // GetDefaultComputeResourcePool implements rm.ResourceManager.
-func (k *ResourceManager) GetDefaultComputeResourcePool(
-	sproto.GetDefaultComputeResourcePoolRequest,
-) (sproto.GetDefaultComputeResourcePoolResponse, error) {
+func (k *ResourceManager) GetDefaultComputeResourcePool() (sproto.GetDefaultComputeResourcePoolResponse, error) {
 	if k.config.DefaultComputeResourcePool == "" {
 		return sproto.GetDefaultComputeResourcePoolResponse{}, rmerrors.ErrNoDefaultResourcePool
 	}
-	return sproto.GetDefaultComputeResourcePoolResponse{PoolName: k.config.DefaultComputeResourcePool}, nil
+	return sproto.GetDefaultComputeResourcePoolResponse{
+		PoolName: k.config.DefaultComputeResourcePool,
+	}, nil
 }
 
 // GetExternalJobs implements rm.ResourceManager.
-func (ResourceManager) GetExternalJobs(sproto.GetExternalJobs) ([]*jobv1.Job, error) {
+func (ResourceManager) GetExternalJobs(string) ([]*jobv1.Job, error) {
 	return nil, rmerrors.ErrNotSupported
 }
 
 // GetJobQ implements rm.ResourceManager.
-func (k *ResourceManager) GetJobQ(msg sproto.GetJobQ) (map[model.JobID]*sproto.RMJobInfo, error) {
-	if msg.ResourcePool == "" {
-		msg.ResourcePool = k.config.DefaultComputeResourcePool
+func (k *ResourceManager) GetJobQ(resourcePool string) (map[model.JobID]*sproto.RMJobInfo, error) {
+	if resourcePool == "" {
+		resourcePool = k.config.DefaultComputeResourcePool
 	}
 
-	rp, err := k.poolByName(msg.ResourcePool)
+	rp, err := k.poolByName(resourcePool)
 	if err != nil {
 		return nil, err
 	}
-	resp := rp.GetJobQ(msg)
+	resp := rp.GetJobQ()
 	return resp, nil
 }
 
@@ -243,7 +241,7 @@ func (k *ResourceManager) GetJobQueueStatsRequest(
 	for poolName, rp := range k.pools {
 		qStats := apiv1.RPQueueStat{
 			ResourcePool: poolName,
-			Stats:        rp.GetJobQStats(sproto.GetJobQStats{}),
+			Stats:        rp.GetJobQStats(),
 		}
 
 		aggregates, err := k.fetchAvgQueuedTime(poolName)
@@ -259,7 +257,7 @@ func (k *ResourceManager) GetJobQueueStatsRequest(
 }
 
 // GetResourcePools implements rm.ResourceManager.
-func (k *ResourceManager) GetResourcePools(*apiv1.GetResourcePoolsRequest) (*apiv1.GetResourcePoolsResponse, error) {
+func (k *ResourceManager) GetResourcePools() (*apiv1.GetResourcePoolsResponse, error) {
 	summaries := make([]*resourcepoolv1.ResourcePool, 0, len(k.poolsConfig))
 	for _, pool := range k.poolsConfig {
 		summary, err := k.createResourcePoolSummary(pool.PoolName)
@@ -351,22 +349,11 @@ func (k *ResourceManager) SetGroupWeight(msg sproto.SetGroupWeight) error {
 	return rp.SetGroupWeight(msg)
 }
 
-// ValidateCommandResources implements rm.ResourceManager.
-func (k *ResourceManager) ValidateCommandResources(
-	msg sproto.ValidateCommandResourcesRequest,
-) (sproto.ValidateCommandResourcesResponse, error) {
-	rp, err := k.poolByName(msg.ResourcePool)
-	if err != nil {
-		return sproto.ValidateCommandResourcesResponse{}, err
-	}
-	return rp.ValidateCommandResources(msg), nil
-}
-
 // getResourcePoolRef gets an actor ref to a resource pool by name.
 func (k ResourceManager) resourcePoolExists(
 	name string,
 ) error {
-	resp, err := k.GetResourcePools(&apiv1.GetResourcePoolsRequest{})
+	resp, err := k.GetResourcePools()
 	if err != nil {
 		return err
 	}
@@ -393,8 +380,7 @@ func (k ResourceManager) ResolveResourcePool(
 	// If the resource pool isn't set, fill in the default at creation time.
 	if name == "" && slots == 0 {
 		if defaultAuxPool == "" {
-			req := sproto.GetDefaultAuxResourcePoolRequest{}
-			resp, err := k.GetDefaultAuxResourcePool(req)
+			resp, err := k.GetDefaultAuxResourcePool()
 			if err != nil {
 				return "", fmt.Errorf("defaulting to aux pool: %w", err)
 			}
@@ -405,8 +391,7 @@ func (k ResourceManager) ResolveResourcePool(
 
 	if name == "" && slots >= 0 {
 		if defaultComputePool == "" {
-			req := sproto.GetDefaultComputeResourcePoolRequest{}
-			resp, err := k.GetDefaultComputeResourcePool(req)
+			resp, err := k.GetDefaultComputeResourcePool()
 			if err != nil {
 				return "", fmt.Errorf("defaulting to compute pool: %w", err)
 			}
@@ -415,7 +400,7 @@ func (k ResourceManager) ResolveResourcePool(
 		name = defaultComputePool
 	}
 
-	resp, err := k.GetResourcePools(&apiv1.GetResourcePoolsRequest{})
+	resp, err := k.GetResourcePools()
 	if err != nil {
 		return "", err
 	}
@@ -446,11 +431,7 @@ func (k ResourceManager) ResolveResourcePool(
 
 // ValidateResources ensures enough resources are available in the resource pool.
 // This is a no-op for k8s.
-func (k ResourceManager) ValidateResources(
-	name string,
-	slots int,
-	command bool,
-) error {
+func (k ResourceManager) ValidateResources(name string, slots int, command bool) error {
 	return nil
 }
 
@@ -489,11 +470,11 @@ func (k ResourceManager) IsReattachableOnlyAfterStarted() bool {
 }
 
 // TaskContainerDefaults returns TaskContainerDefaults for the specified pool.
-func (k ResourceManager) TaskContainerDefaults(
-	pool string,
-	fallbackConfig model.TaskContainerDefaultsConfig,
+func (k ResourceManager) TaskContainerDefaults(pool string, fallbackConfig model.TaskContainerDefaultsConfig,
 ) (result model.TaskContainerDefaultsConfig, err error) {
-	return k.getTaskContainerDefaults(taskContainerDefaults{fallbackDefault: fallbackConfig, resourcePool: pool}), nil
+	return k.getTaskContainerDefaults(
+		taskContainerDefaults{fallbackDefault: fallbackConfig, resourcePool: pool},
+	), nil
 }
 
 func (k *ResourceManager) podStatusUpdateCallback(msg sproto.UpdatePodStatus) {
@@ -506,11 +487,11 @@ func (k *ResourceManager) poolByName(resourcePool string) (*kubernetesResourcePo
 	if resourcePool == "" {
 		return nil, errors.New("invalid call: cannot get a resource pool with no name")
 	}
-	rp, ok := k.pools[resourcePool]
+	res, ok := k.pools[resourcePool]
 	if !ok {
 		return nil, fmt.Errorf("cannot find resource pool %s", resourcePool)
 	}
-	return rp, nil
+	return res, nil
 }
 
 func (k *ResourceManager) createResourcePoolSummary(
@@ -627,7 +608,7 @@ func (k *ResourceManager) getPoolJobStats(
 		return nil, err
 	}
 
-	jobStats := rp.GetJobQStats(sproto.GetJobQStats{})
+	jobStats := rp.GetJobQStats()
 	return jobStats, nil
 }
 

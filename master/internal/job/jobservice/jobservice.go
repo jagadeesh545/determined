@@ -26,6 +26,8 @@ type Job interface {
 	SetWeight(weight float64) error
 	SetResourcePool(resourcePool string) error
 	ResourcePool() string
+	SetResourceManager(resourceManager string) error
+	ResourceManager() string
 }
 
 // Service manages the job service.
@@ -90,8 +92,9 @@ func (s *Service) jobQRefs(jobQ map[model.JobID]*sproto.RMJobInfo) (map[model.Jo
 	return jobRefs, nil
 }
 
-// GetJobs returns a list of jobs for a resource pool.
+// GetJobs returns a list of jobs for a resource pool under a specific resource manager.
 func (s *Service) GetJobs(
+	resourceManager string,
 	resourcePool string,
 	desc bool,
 	states []jobv1.State,
@@ -99,7 +102,7 @@ func (s *Service) GetJobs(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	jobQ, err := s.rm.GetJobQ(sproto.GetJobQ{ResourcePool: resourcePool})
+	jobQ, err := s.rm.GetJobQ(resourcePool)
 	if err != nil {
 		s.syslog.WithError(err).Error("getting job queue info from RM")
 		return nil, err
@@ -113,9 +116,7 @@ func (s *Service) GetJobs(
 	// If the GetExternalJobs call is supported, RM returns a list of external jobs or
 	// an error if there is any problem. Otherwise, RM returns rmerrors.ErrNotSupported
 	// error. In this case, continue without the External jobs.
-	externalJobs, err := s.rm.GetExternalJobs(sproto.GetExternalJobs{
-		ResourcePool: resourcePool,
-	})
+	externalJobs, err := s.rm.GetExternalJobs(resourcePool)
 	if err != nil {
 		// If the error is not 'ErrNotSupported' error, propagate the error upwards.
 		if err != rmerrors.ErrNotSupported {
@@ -161,12 +162,12 @@ func (s *Service) GetJobs(
 	return jobsInRM, nil
 }
 
-// GetJobSummary returns a summary of the job given an id and resource pool.
+// GetJobSummary returns a summary of the job given an id and resource pool/resource manager.
 func (s *Service) GetJobSummary(id model.JobID, resourcePool string) (*jobv1.JobSummary, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	jobQ, err := s.rm.GetJobQ(sproto.GetJobQ{ResourcePool: resourcePool})
+	jobQ, err := s.rm.GetJobQ(resourcePool)
 	if err != nil {
 		s.syslog.WithError(err).Error("getting job queue info from RM")
 		return nil, err

@@ -87,3 +87,19 @@ func (e *internalExperiment) ResourcePool() string {
 
 	return e.activeConfig.Resources().ResourcePool()
 }
+
+// SetResourceManager sets the experiment's resource manager.
+func (e *internalExperiment) SetResourceManager(resourceManager string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	return e.setRP(resourceManager)
+}
+
+// ResourceManager gets the experiments's resource pool.
+func (e *internalExperiment) ResourceManager() string {
+	e.mu.Lock()
+	defer e.mu.Lock()
+
+	return e.activeConfig.Resources().ResourceManager()
+}

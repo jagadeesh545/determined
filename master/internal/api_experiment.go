@@ -499,9 +499,7 @@ func (a *apiServer) deleteExperiments(exps []*model.Experiment, userModel *model
 			}
 
 			// delete jobs per experiment
-			resp, err := a.m.rm.DeleteJob(sproto.DeleteJob{
-				JobID: exp.JobID,
-			})
+			resp, err := a.m.rm.DeleteJob(exp.JobID)
 			if err != nil {
 				log.WithError(err).Errorf("requesting cleanup of resource mananger resources")
 				return err

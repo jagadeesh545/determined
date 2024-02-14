@@ -182,7 +182,8 @@ func runCheckpointGCTask(
 		FittingRequirements: sproto.FittingRequirements{
 			SingleAgent: true,
 		},
-		ResourcePool: rp,
+		ResourceManager: "", // TODO (multirm): add RM, once you figure out how to pass it in.
+		ResourcePool:    rp,
 	}, pgDB, rm, gcSpec, onExit)
 	if err != nil {
 		return err

@@ -37,6 +37,7 @@ type (
 
 		// Resource configuration.
 		SlotsNeeded         int
+		ResourceManager     string
 		ResourcePool        string
 		FittingRequirements FittingRequirements
 
@@ -80,24 +81,24 @@ type (
 	GetAllocationSummaries struct{}
 	// AllocationSummary contains information about a task for external display.
 	AllocationSummary struct {
-		TaskID         model.TaskID       `json:"task_id"`
-		AllocationID   model.AllocationID `json:"allocation_id"`
-		Name           string             `json:"name"`
-		RegisteredTime time.Time          `json:"registered_time"`
-		ResourcePool   string             `json:"resource_pool"`
-		SlotsNeeded    int                `json:"slots_needed"`
-		Resources      []ResourcesSummary `json:"resources"`
-		SchedulerType  string             `json:"scheduler_type"`
-		Priority       *int               `json:"priority"`
-		ProxyPorts     []*ProxyPortConfig `json:"proxy_ports,omitempty"`
+		TaskID          model.TaskID       `json:"task_id"`
+		AllocationID    model.AllocationID `json:"allocation_id"`
+		Name            string             `json:"name"`
+		RegisteredTime  time.Time          `json:"registered_time"`
+		ResourceManager string             `json:"resource_manager"`
+		ResourcePool    string             `json:"resource_pool"`
+		SlotsNeeded     int                `json:"slots_needed"`
+		Resources       []ResourcesSummary `json:"resources"`
+		SchedulerType   string             `json:"scheduler_type"`
+		Priority        *int               `json:"priority"`
+		ProxyPorts      []*ProxyPortConfig `json:"proxy_ports,omitempty"`
 	}
 
 	// ValidateCommandResourcesRequest is a message asking resource manager whether the given
 	// resource pool can (or, rather, if it's not impossible to) fulfill the command request
 	// for the given amount of slots.
 	ValidateCommandResourcesRequest struct {
-		ResourcePool string
-		Slots        int
+		Slots int
 	}
 
 	// ValidateCommandResourcesResponse is the response to ValidateCommandResourcesRequest.
@@ -237,10 +238,6 @@ func (a *AllocationSummary) Proto() *taskv1.AllocationSummary {
 
 // Incoming task actor messages; task actors must accept these messages.
 type (
-	// ChangeRP notifies the task actor that to set itself for a new resource pool.
-	ChangeRP struct {
-		ResourcePool string
-	}
 	// ResourcesAllocated notifies the task actor of assigned resources.
 	ResourcesAllocated struct {
 		ID                model.AllocationID
@@ -248,11 +245,6 @@ type (
 		Resources         ResourceList
 		JobSubmissionTime time.Time
 		Recovered         bool
-	}
-	// PendingPreemption notifies the task actor that it should release
-	// resources due to a pending system-triggered preemption.
-	PendingPreemption struct {
-		AllocationID model.AllocationID
 	}
 
 	// NotifyContainerRunning notifies the launcher (dispatcher) resource

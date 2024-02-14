@@ -11,44 +11,39 @@ import (
 // ResourceManager is an interface for a resource manager, which can allocate and manage resources.
 type ResourceManager interface {
 	// Basic functionality
-	GetAllocationSummaries(sproto.GetAllocationSummaries) (map[model.AllocationID]sproto.AllocationSummary, error)
+	GetAllocationSummaries() (map[model.AllocationID]sproto.AllocationSummary, error)
 	Allocate(sproto.AllocateRequest) (*sproto.ResourcesSubscription, error)
 	Release(sproto.ResourcesReleased)
-	ValidateCommandResources(sproto.ValidateCommandResourcesRequest) (sproto.ValidateCommandResourcesResponse, error)
-	ValidateResources(name string, slots int, command bool) error
-	DeleteJob(sproto.DeleteJob) (sproto.DeleteJobResponse, error)
+	ValidateResources(rp string, slots int, command bool) error
+	DeleteJob(model.JobID) (sproto.DeleteJobResponse, error)
 	NotifyContainerRunning(sproto.NotifyContainerRunning) error
 
 	// Scheduling related stuff
 	SetGroupMaxSlots(sproto.SetGroupMaxSlots)
 	SetGroupWeight(sproto.SetGroupWeight) error
 	SetGroupPriority(sproto.SetGroupPriority) error
-	ExternalPreemptionPending(sproto.PendingPreemption) error
+	ExternalPreemptionPending(model.AllocationID) error
 	IsReattachableOnlyAfterStarted() bool
 
-	// Resource pool stuff.
-	GetResourcePools(*apiv1.GetResourcePoolsRequest) (*apiv1.GetResourcePoolsResponse, error)
-	GetDefaultComputeResourcePool(
-		sproto.GetDefaultComputeResourcePoolRequest,
-	) (sproto.GetDefaultComputeResourcePoolResponse, error)
-	GetDefaultAuxResourcePool(sproto.GetDefaultAuxResourcePoolRequest) (sproto.GetDefaultAuxResourcePoolResponse, error)
-	ValidateResourcePool(name string) error
+	// Resource pool stuff
+	GetResourcePools() (*apiv1.GetResourcePoolsResponse, error)
+	GetDefaultComputeResourcePool() (sproto.GetDefaultComputeResourcePoolResponse, error)
+	GetDefaultAuxResourcePool() (sproto.GetDefaultAuxResourcePoolResponse, error)
+	ValidateResourcePool(string) error
 	ResolveResourcePool(name string, workspace, slots int) (string, error)
 	ValidateResourcePoolAvailability(v *sproto.ValidateResourcePoolAvailabilityRequest) ([]command.LaunchWarning, error)
-	TaskContainerDefaults(
-		resourcePoolName string,
-		fallbackConfig model.TaskContainerDefaultsConfig,
-	) (model.TaskContainerDefaultsConfig, error)
+	TaskContainerDefaults(rp string, fallbackConfig model.TaskContainerDefaultsConfig) (
+		model.TaskContainerDefaultsConfig, error)
 
 	// Job queue
-	GetJobQ(sproto.GetJobQ) (map[model.JobID]*sproto.RMJobInfo, error)
+	GetJobQ(string) (map[model.JobID]*sproto.RMJobInfo, error)
 	GetJobQueueStatsRequest(*apiv1.GetJobQueueStatsRequest) (*apiv1.GetJobQueueStatsResponse, error)
 	MoveJob(sproto.MoveJob) error
 	RecoverJobPosition(sproto.RecoverJobPosition)
-	GetExternalJobs(sproto.GetExternalJobs) ([]*jobv1.Job, error)
+	GetExternalJobs(rp string) ([]*jobv1.Job, error)
 
 	// Cluster Management APIs
-	GetAgents(*apiv1.GetAgentsRequest) (*apiv1.GetAgentsResponse, error)
+	GetAgents() (*apiv1.GetAgentsResponse, error)
 	GetAgent(*apiv1.GetAgentRequest) (*apiv1.GetAgentResponse, error)
 	EnableAgent(*apiv1.EnableAgentRequest) (*apiv1.EnableAgentResponse, error)
 	DisableAgent(*apiv1.DisableAgentRequest) (*apiv1.DisableAgentResponse, error)

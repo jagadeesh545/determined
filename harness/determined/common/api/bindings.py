@@ -858,25 +858,33 @@ class v1AcceleratorData(Printable):
 
 class v1AckAllocationPreemptionSignalRequest(Printable):
     """Acknowledge the receipt of some stop signal."""
+    resourceManager: "typing.Optional[str]" = None
 
     def __init__(
         self,
         *,
         allocationId: str,
+        resourceManager: "typing.Union[str, None, Unset]" = _unset,
     ):
         self.allocationId = allocationId
+        if not isinstance(resourceManager, Unset):
+            self.resourceManager = resourceManager
 
     @classmethod
     def from_json(cls, obj: Json) -> "v1AckAllocationPreemptionSignalRequest":
         kwargs: "typing.Dict[str, typing.Any]" = {
             "allocationId": obj["allocationId"],
         }
+        if "resourceManager" in obj:
+            kwargs["resourceManager"] = obj["resourceManager"]
         return cls(**kwargs)
 
     def to_json(self, omit_unset: bool = False) -> typing.Dict[str, typing.Any]:
         out: "typing.Dict[str, typing.Any]" = {
             "allocationId": self.allocationId,
         }
+        if not omit_unset or "resourceManager" in vars(self):
+            out["resourceManager"] = self.resourceManager
         return out
 
 class v1ActivateExperimentsRequest(Printable):
@@ -1331,25 +1339,33 @@ class v1AllocationAllGatherResponse(Printable):
         return out
 
 class v1AllocationPendingPreemptionSignalRequest(Printable):
+    resourceManager: "typing.Optional[str]" = None
 
     def __init__(
         self,
         *,
         allocationId: str,
+        resourceManager: "typing.Union[str, None, Unset]" = _unset,
     ):
         self.allocationId = allocationId
+        if not isinstance(resourceManager, Unset):
+            self.resourceManager = resourceManager
 
     @classmethod
     def from_json(cls, obj: Json) -> "v1AllocationPendingPreemptionSignalRequest":
         kwargs: "typing.Dict[str, typing.Any]" = {
             "allocationId": obj["allocationId"],
         }
+        if "resourceManager" in obj:
+            kwargs["resourceManager"] = obj["resourceManager"]
         return cls(**kwargs)
 
     def to_json(self, omit_unset: bool = False) -> typing.Dict[str, typing.Any]:
         out: "typing.Dict[str, typing.Any]" = {
             "allocationId": self.allocationId,
         }
+        if not omit_unset or "resourceManager" in vars(self):
+            out["resourceManager"] = self.resourceManager
         return out
 
 class v1AllocationPreemptionSignalResponse(Printable):
@@ -1704,6 +1720,7 @@ class v1AwsCustomTag(Printable):
         return out
 
 class v1BindRPToWorkspaceRequest(Printable):
+    resourceManagerName: "typing.Optional[str]" = None
     workspaceIds: "typing.Optional[typing.Sequence[int]]" = None
     workspaceNames: "typing.Optional[typing.Sequence[str]]" = None
 
@@ -1711,10 +1728,13 @@ class v1BindRPToWorkspaceRequest(Printable):
         self,
         *,
         resourcePoolName: str,
+        resourceManagerName: "typing.Union[str, None, Unset]" = _unset,
         workspaceIds: "typing.Union[typing.Sequence[int], None, Unset]" = _unset,
         workspaceNames: "typing.Union[typing.Sequence[str], None, Unset]" = _unset,
     ):
         self.resourcePoolName = resourcePoolName
+        if not isinstance(resourceManagerName, Unset):
+            self.resourceManagerName = resourceManagerName
         if not isinstance(workspaceIds, Unset):
             self.workspaceIds = workspaceIds
         if not isinstance(workspaceNames, Unset):
@@ -1725,6 +1745,8 @@ class v1BindRPToWorkspaceRequest(Printable):
         kwargs: "typing.Dict[str, typing.Any]" = {
             "resourcePoolName": obj["resourcePoolName"],
         }
+        if "resourceManagerName" in obj:
+            kwargs["resourceManagerName"] = obj["resourceManagerName"]
         if "workspaceIds" in obj:
             kwargs["workspaceIds"] = obj["workspaceIds"]
         if "workspaceNames" in obj:
@@ -1735,6 +1757,8 @@ class v1BindRPToWorkspaceRequest(Printable):
         out: "typing.Dict[str, typing.Any]" = {
             "resourcePoolName": self.resourcePoolName,
         }
+        if not omit_unset or "resourceManagerName" in vars(self):
+            out["resourceManagerName"] = self.resourceManagerName
         if not omit_unset or "workspaceIds" in vars(self):
             out["workspaceIds"] = self.workspaceIds
         if not omit_unset or "workspaceNames" in vars(self):
@@ -3100,17 +3124,21 @@ class v1DisableAgentRequest(Printable):
     """Disable the agent."""
     agentId: "typing.Optional[str]" = None
     drain: "typing.Optional[bool]" = None
+    resourceManager: "typing.Optional[str]" = None
 
     def __init__(
         self,
         *,
         agentId: "typing.Union[str, None, Unset]" = _unset,
         drain: "typing.Union[bool, None, Unset]" = _unset,
+        resourceManager: "typing.Union[str, None, Unset]" = _unset,
     ):
         if not isinstance(agentId, Unset):
             self.agentId = agentId
         if not isinstance(drain, Unset):
             self.drain = drain
+        if not isinstance(resourceManager, Unset):
+            self.resourceManager = resourceManager
 
     @classmethod
     def from_json(cls, obj: Json) -> "v1DisableAgentRequest":
@@ -3120,6 +3148,8 @@ class v1DisableAgentRequest(Printable):
             kwargs["agentId"] = obj["agentId"]
         if "drain" in obj:
             kwargs["drain"] = obj["drain"]
+        if "resourceManager" in obj:
+            kwargs["resourceManager"] = obj["resourceManager"]
         return cls(**kwargs)
 
     def to_json(self, omit_unset: bool = False) -> typing.Dict[str, typing.Any]:
@@ -3129,6 +3159,8 @@ class v1DisableAgentRequest(Printable):
             out["agentId"] = self.agentId
         if not omit_unset or "drain" in vars(self):
             out["drain"] = self.drain
+        if not omit_unset or "resourceManager" in vars(self):
+            out["resourceManager"] = self.resourceManager
         return out
 
 class v1DisableAgentResponse(Printable):
@@ -3162,6 +3194,7 @@ class v1DisableSlotRequest(Printable):
     """Disable the slot."""
     agentId: "typing.Optional[str]" = None
     drain: "typing.Optional[bool]" = None
+    resourceManager: "typing.Optional[str]" = None
     slotId: "typing.Optional[str]" = None
 
     def __init__(
@@ -3169,12 +3202,15 @@ class v1DisableSlotRequest(Printable):
         *,
         agentId: "typing.Union[str, None, Unset]" = _unset,
         drain: "typing.Union[bool, None, Unset]" = _unset,
+        resourceManager: "typing.Union[str, None, Unset]" = _unset,
         slotId: "typing.Union[str, None, Unset]" = _unset,
     ):
         if not isinstance(agentId, Unset):
             self.agentId = agentId
         if not isinstance(drain, Unset):
             self.drain = drain
+        if not isinstance(resourceManager, Unset):
+            self.resourceManager = resourceManager
         if not isinstance(slotId, Unset):
             self.slotId = slotId
 
@@ -3186,6 +3222,8 @@ class v1DisableSlotRequest(Printable):
             kwargs["agentId"] = obj["agentId"]
         if "drain" in obj:
             kwargs["drain"] = obj["drain"]
+        if "resourceManager" in obj:
+            kwargs["resourceManager"] = obj["resourceManager"]
         if "slotId" in obj:
             kwargs["slotId"] = obj["slotId"]
         return cls(**kwargs)
@@ -3197,6 +3235,8 @@ class v1DisableSlotRequest(Printable):
             out["agentId"] = self.agentId
         if not omit_unset or "drain" in vars(self):
             out["drain"] = self.drain
+        if not omit_unset or "resourceManager" in vars(self):
+            out["resourceManager"] = self.resourceManager
         if not omit_unset or "slotId" in vars(self):
             out["slotId"] = self.slotId
         return out
@@ -8533,6 +8573,7 @@ class v1NotifyContainerRunningRequest(Printable):
     numPeers: "typing.Optional[int]" = None
     rank: "typing.Optional[int]" = None
     requestUuid: "typing.Optional[str]" = None
+    resourceManager: "typing.Optional[str]" = None
 
     def __init__(
         self,
@@ -8543,6 +8584,7 @@ class v1NotifyContainerRunningRequest(Printable):
         numPeers: "typing.Union[int, None, Unset]" = _unset,
         rank: "typing.Union[int, None, Unset]" = _unset,
         requestUuid: "typing.Union[str, None, Unset]" = _unset,
+        resourceManager: "typing.Union[str, None, Unset]" = _unset,
     ):
         self.allocationId = allocationId
         self.data = data
@@ -8554,6 +8596,8 @@ class v1NotifyContainerRunningRequest(Printable):
             self.rank = rank
         if not isinstance(requestUuid, Unset):
             self.requestUuid = requestUuid
+        if not isinstance(resourceManager, Unset):
+            self.resourceManager = resourceManager
 
     @classmethod
     def from_json(cls, obj: Json) -> "v1NotifyContainerRunningRequest":
@@ -8569,6 +8613,8 @@ class v1NotifyContainerRunningRequest(Printable):
             kwargs["rank"] = obj["rank"]
         if "requestUuid" in obj:
             kwargs["requestUuid"] = obj["requestUuid"]
+        if "resourceManager" in obj:
+            kwargs["resourceManager"] = obj["resourceManager"]
         return cls(**kwargs)
 
     def to_json(self, omit_unset: bool = False) -> typing.Dict[str, typing.Any]:
@@ -8584,6 +8630,8 @@ class v1NotifyContainerRunningRequest(Printable):
             out["rank"] = self.rank
         if not omit_unset or "requestUuid" in vars(self):
             out["requestUuid"] = self.requestUuid
+        if not omit_unset or "resourceManager" in vars(self):
+            out["resourceManager"] = self.resourceManager
         return out
 
 class v1NotifyContainerRunningResponse(Printable):
@@ -8620,6 +8668,7 @@ class v1OrderBy(DetEnum):
 
 class v1OverwriteRPWorkspaceBindingsRequest(Printable):
     """Overwrite and replace the workspaces bound to an RP request."""
+    resourceManagerName: "typing.Optional[str]" = None
     workspaceIds: "typing.Optional[typing.Sequence[int]]" = None
     workspaceNames: "typing.Optional[typing.Sequence[str]]" = None
 
@@ -8627,10 +8676,13 @@ class v1OverwriteRPWorkspaceBindingsRequest(Printable):
         self,
         *,
         resourcePoolName: str,
+        resourceManagerName: "typing.Union[str, None, Unset]" = _unset,
         workspaceIds: "typing.Union[typing.Sequence[int], None, Unset]" = _unset,
         workspaceNames: "typing.Union[typing.Sequence[str], None, Unset]" = _unset,
     ):
         self.resourcePoolName = resourcePoolName
+        if not isinstance(resourceManagerName, Unset):
+            self.resourceManagerName = resourceManagerName
         if not isinstance(workspaceIds, Unset):
             self.workspaceIds = workspaceIds
         if not isinstance(workspaceNames, Unset):
@@ -8641,6 +8693,8 @@ class v1OverwriteRPWorkspaceBindingsRequest(Printable):
         kwargs: "typing.Dict[str, typing.Any]" = {
             "resourcePoolName": obj["resourcePoolName"],
         }
+        if "resourceManagerName" in obj:
+            kwargs["resourceManagerName"] = obj["resourceManagerName"]
         if "workspaceIds" in obj:
             kwargs["workspaceIds"] = obj["workspaceIds"]
         if "workspaceNames" in obj:
@@ -8651,6 +8705,8 @@ class v1OverwriteRPWorkspaceBindingsRequest(Printable):
         out: "typing.Dict[str, typing.Any]" = {
             "resourcePoolName": self.resourcePoolName,
         }
+        if not omit_unset or "resourceManagerName" in vars(self):
+            out["resourceManagerName"] = self.resourceManagerName
         if not omit_unset or "workspaceIds" in vars(self):
             out["workspaceIds"] = self.workspaceIds
         if not omit_unset or "workspaceNames" in vars(self):
@@ -16521,12 +16577,16 @@ def get_GetAgent(
     session: "api.BaseSession",
     *,
     agentId: str,
+    resourceManager: "typing.Optional[str]" = None,
 ) -> "v1GetAgentResponse":
     """Get the requested agent.
 
     - agentId: The id of the agent.
+    - resourceManager: The resource manager for the request.
     """
-    _params = None
+    _params = {
+        "resourceManager": resourceManager,
+    }
     if type(agentId) == str:
         agentId = parse.quote(agentId)
     _resp = session._do_request(
@@ -17229,13 +17289,16 @@ for users.
 def get_GetJobQueueStats(
     session: "api.BaseSession",
     *,
+    resourceManager: "typing.Optional[str]" = None,
     resourcePools: "typing.Optional[typing.Sequence[str]]" = None,
 ) -> "v1GetJobQueueStatsResponse":
     """Get job queue stats for a resource pool.
 
+    - resourceManager: The resource manager for the request.
     - resourcePools: Filter the results based on a set of resource pools.
     """
     _params = {
+        "resourceManager": resourceManager,
         "resourcePools": resourcePools,
     }
     _resp = session._do_request(
@@ -17258,6 +17321,7 @@ def get_GetJobs(
     limit: "typing.Optional[int]" = None,
     offset: "typing.Optional[int]" = None,
     orderBy: "typing.Optional[v1OrderBy]" = None,
+    resourceManager: "typing.Optional[str]" = None,
     resourcePool: "typing.Optional[str]" = None,
     states: "typing.Optional[typing.Sequence[jobv1State]]" = None,
 ) -> "v1GetJobsResponse":
@@ -17271,6 +17335,7 @@ jobs ahead.
  - ORDER_BY_UNSPECIFIED: Returns records in no specific order.
  - ORDER_BY_ASC: Returns records in ascending order.
  - ORDER_BY_DESC: Returns records in descending order.
+    - resourceManager: The resource manager for the request.
     - resourcePool: The target resource-pool for agent resource manager.
     - states: Filter to jobs with states among those given.
 
@@ -17283,6 +17348,7 @@ jobs ahead.
         "limit": limit,
         "offset": offset,
         "orderBy": orderBy.value if orderBy is not None else None,
+        "resourceManager": resourceManager,
         "resourcePool": resourcePool,
         "states": [x.value for x in states] if states is not None else None,
     }
@@ -17306,6 +17372,7 @@ def get_GetJobsV2(
     limit: "typing.Optional[int]" = None,
     offset: "typing.Optional[int]" = None,
     orderBy: "typing.Optional[v1OrderBy]" = None,
+    resourceManager: "typing.Optional[str]" = None,
     resourcePool: "typing.Optional[str]" = None,
     states: "typing.Optional[typing.Sequence[jobv1State]]" = None,
 ) -> "v1GetJobsV2Response":
@@ -17319,6 +17386,7 @@ jobs ahead.
  - ORDER_BY_UNSPECIFIED: Returns records in no specific order.
  - ORDER_BY_ASC: Returns records in ascending order.
  - ORDER_BY_DESC: Returns records in descending order.
+    - resourceManager: The resource manager for the request.
     - resourcePool: The target resource-pool for agent resource manager.
     - states: Filter to jobs with states among those given.
 
@@ -17331,6 +17399,7 @@ jobs ahead.
         "limit": limit,
         "offset": offset,
         "orderBy": orderBy.value if orderBy is not None else None,
+        "resourceManager": resourceManager,
         "resourcePool": resourcePool,
         "states": [x.value for x in states] if states is not None else None,
     }
@@ -18136,13 +18205,17 @@ def get_GetSlot(
     *,
     agentId: str,
     slotId: str,
+    resourceManager: "typing.Optional[str]" = None,
 ) -> "v1GetSlotResponse":
     """Get the requested slot for an agent.
 
     - agentId: The id of the agent.
     - slotId: The id of the slot.
+    - resourceManager: The resource manager for the request.
     """
-    _params = None
+    _params = {
+        "resourceManager": resourceManager,
+    }
     if type(agentId) == str:
         agentId = parse.quote(agentId)
     if type(slotId) == str:
@@ -18165,12 +18238,16 @@ def get_GetSlots(
     session: "api.BaseSession",
     *,
     agentId: str,
+    resourceManager: "typing.Optional[str]" = None,
 ) -> "v1GetSlotsResponse":
     """Get all the slots for an agent.
 
     - agentId: The id of the agent.
+    - resourceManager: The resource manager for the request.
     """
-    _params = None
+    _params = {
+        "resourceManager": resourceManager,
+    }
     if type(agentId) == str:
         agentId = parse.quote(agentId)
     _resp = session._do_request(

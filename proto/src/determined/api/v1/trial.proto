@@ -481,6 +481,8 @@ message AckAllocationPreemptionSignalRequest {
   };
   // The allocation that is acknowledging the request.
   string allocation_id = 1;
+  // The resource manager for the request.
+  string resource_manager = 2;
 }
 // Allocation has been notified of a pending preemption
 message AllocationPendingPreemptionSignalRequest {
@@ -489,6 +491,8 @@ message AllocationPendingPreemptionSignalRequest {
   };
   // The id of the allocation.
   string allocation_id = 1;
+  // The resource manager for the request.
+  string resource_manager = 2;
 }
 
 // Response to AllocationPendingPreemptionSignalRequest
@@ -608,6 +612,8 @@ message NotifyContainerRunningRequest {
   string node_name = 5;
   // The data from this process.
   google.protobuf.Struct data = 6;
+  // The resource manager for the request.
+  string resource_manager = 7;
 }
 // Response to NotifyContainerRunningResponse
 message NotifyContainerRunningResponse {

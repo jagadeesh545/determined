@@ -84,3 +84,13 @@ func (c *Command) SetResourcePool(resourcePool string) error {
 func (c *Command) ResourcePool() string {
 	return c.Config.Resources.ResourcePool
 }
+
+// SetResourceManager is not implemented for commands.
+func (c *Command) SetResourceManager(resourceManager string) error {
+	return fmt.Errorf("setting resource manager for job type %s is not supported", c.jobType)
+}
+
+// ResourceManager gets the command's resource manager.
+func (c *Command) ResourceManager() string {
+	return c.Config.Resources.ResourceManager
+}

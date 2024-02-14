@@ -401,6 +401,7 @@ func (t *trial) maybeAllocateTask() error {
 			IsUserVisible:     true,
 			Name:              name,
 			SlotsNeeded:       t.config.Resources().SlotsPerTrial(),
+			ResourceManager:   t.config.Resources().ResourceManager(),
 			ResourcePool:      t.config.Resources().ResourcePool(),
 			FittingRequirements: sproto.FittingRequirements{
 				SingleAgent: isSingleNode,
@@ -445,8 +446,9 @@ func (t *trial) maybeAllocateTask() error {
 		IsUserVisible:     true,
 		Name:              name,
 
-		SlotsNeeded:  t.config.Resources().SlotsPerTrial(),
-		ResourcePool: t.config.Resources().ResourcePool(),
+		SlotsNeeded:     t.config.Resources().SlotsPerTrial(),
+		ResourceManager: t.config.Resources().ResourceManager(),
+		ResourcePool:    t.config.Resources().ResourcePool(),
 		FittingRequirements: sproto.FittingRequirements{
 			SingleAgent: isSingleNode,
 		},

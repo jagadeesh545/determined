@@ -108,3 +108,11 @@ func (s GenericTaskSpec) SetResourcePool(resourcePool string) error { return nil
 
 // ResourcePool - returns resource pool.
 func (s GenericTaskSpec) ResourcePool() string { return s.GenericTaskConfig.Resources.ResourcePool() }
+
+// SetResourceManager todo.
+func (s GenericTaskSpec) SetResourceManager(resourceManager string) error { return nil }
+
+// ResourceManager returns the generic task spec's resource manager.
+func (s GenericTaskSpec) ResourceManager() string {
+	return s.GenericTaskConfig.Resources.ResourceManager()
+}
