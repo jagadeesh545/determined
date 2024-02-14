@@ -101,5 +101,14 @@ type ValidateResourcePoolAvailabilityRequest struct {
 	Slots int
 	// Optional. If it is provided, ValidateResourcePoolAvailability() validates resource pool
 	// availability for a specific task.
-	TaskID *model.TaskID
+	TaskID          *model.TaskID
+	ResourceManager string
+}
+
+// ResolveResourcesRequest contains the params for ResolveResources().
+type ResolveResourcesRequest struct {
+	ResourceManager string
+	ResourcePool    string
+	Workspace       int
+	Slots           int
 }

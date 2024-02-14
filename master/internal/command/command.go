@@ -155,6 +155,7 @@ func (c *Command) Start(ctx context.Context) error {
 			IsUserVisible:       true,
 			Name:                c.Config.Description,
 			SlotsNeeded:         c.Config.Resources.Slots,
+			ResourceManager:     c.Config.Resources.ResourceManager,
 			ResourcePool:        c.Config.Resources.ResourcePool,
 			FittingRequirements: sproto.FittingRequirements{SingleAgent: true},
 			ProxyPorts:          sproto.NewProxyPortConfig(c.GenericCommandSpec.ProxyPorts(), c.taskID),
@@ -263,9 +264,10 @@ func (c *Command) garbageCollect() {
 func (c *Command) setNTSCPriority(priority int, forward bool) error {
 	if forward {
 		switch err := c.rm.SetGroupPriority(sproto.SetGroupPriority{
-			Priority:     priority,
-			ResourcePool: c.Config.Resources.ResourcePool,
-			JobID:        c.jobID,
+			Priority:        priority,
+			ResourceManager: c.Config.Resources.ResourceManager,
+			ResourcePool:    c.Config.Resources.ResourcePool,
+			JobID:           c.jobID,
 		}).(type) {
 		case nil:
 		case rmerrors.UnsupportedError:

@@ -559,9 +559,7 @@ func (rp *resourcePool) NotifyAgentUpdated() {
 	rp.reschedule = true
 }
 
-func (rp *resourcePool) GetAllocationSummaries(
-	msg sproto.GetAllocationSummaries,
-) map[model.AllocationID]sproto.AllocationSummary {
+func (rp *resourcePool) GetAllocationSummaries() map[model.AllocationID]sproto.AllocationSummary {
 	rp.mu.Lock()
 	defer rp.mu.Unlock()
 	return rp.taskList.TaskSummaries(rp.groups, rp.config.Scheduler.GetType())
