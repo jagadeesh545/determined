@@ -26,6 +26,8 @@ const (
 	TrainingMetric MetricPartitionType = "TRAINING"
 	// ValidationMetric designates metrics from validation steps.
 	ValidationMetric MetricPartitionType = "VALIDATION"
+	// ProfilingMetric designates metrics from profiling steps.
+	ProfilingMetric MetricPartitionType = "PROFILING"
 	// GenericMetric designates metrics from other sources.
 	GenericMetric MetricPartitionType = "GENERIC"
 )
@@ -155,7 +157,7 @@ WHERE trial_id = $1
 
 // addMetricsWithMerge inserts a set of metrics to the database allowing for metric merges.
 func (db *PgDB) addMetricsWithMerge(ctx context.Context, tx *sqlx.Tx, mBody *metricsBody,
-	runID, trialID, lastProcessedBatch int32, mGroup model.MetricGroup,
+	runID, trialID int32, lastProcessedBatch *int32, mGroup model.MetricGroup,
 ) (metricID int, addedMetrics *metricsBody, err error) {
 	var existingBodyJSON model.JSONObj
 	metricGroup := string(mGroup)
@@ -192,7 +194,7 @@ FOR UPDATE`,
 }
 
 func (db *PgDB) updateRawMetrics(ctx context.Context, tx *sqlx.Tx, mBody *metricsBody,
-	runID, trialID, lastProcessedBatch int32, mGroup model.MetricGroup,
+	runID, trialID int32, lastProcessedBatch *int32, mGroup model.MetricGroup,
 ) (int, error) {
 	if err := mGroup.Validate(); err != nil {
 		return 0, err
@@ -221,7 +223,7 @@ RETURNING id`,
 
 // addRawMetrics inserts a set of raw metrics to the database and returns the metric id.
 func (db *PgDB) addRawMetrics(ctx context.Context, tx *sqlx.Tx, mBody *metricsBody,
-	runID, trialID, lastProcessedBatch int32, mGroup model.MetricGroup,
+	runID, trialID int32, lastProcessedBatch *int32, mGroup model.MetricGroup,
 ) (int, error) {
 	if err := mGroup.Validate(); err != nil {
 		return 0, err
@@ -257,6 +259,8 @@ func customMetricGroupToPartitionType(mGroup *string) MetricPartitionType {
 		return TrainingMetric
 	case model.ValidationMetricGroup:
 		return ValidationMetric
+	case model.ProfilingMetricGroup:
+		return ProfilingMetric
 	default:
 		return GenericMetric
 	}

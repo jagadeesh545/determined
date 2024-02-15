@@ -367,6 +367,19 @@ func (db *PgDB) updateTotalBatches(ctx context.Context, tx *sqlx.Tx, trialID int
 	return nil
 }
 
+func (db *PgDB) _addTrialProfilingMetricsTx(
+	ctx context.Context, tx *sqlx.Tx, m *trialv1.TrialMetrics,
+) (rollbacks int, err error) {
+	mBody := newMetricsBody(m.Metrics.AvgMetrics, m.Metrics.BatchMetrics, false)
+
+	if err := checkTrialRunID(ctx, tx, m.TrialId, m.TrialRunId); err != nil {
+		return rollbacks, err
+	}
+
+	_, err = db.addRawMetrics(ctx, tx, mBody, m.TrialRunId, m.TrialId, nil, model.ProfilingMetricGroup)
+	return rollbacks, nil
+}
+
 func (db *PgDB) _addTrialMetricsTx(
 	ctx context.Context, tx *sqlx.Tx, m *trialv1.TrialMetrics, mGroup model.MetricGroup,
 ) (rollbacks int, err error) {
@@ -390,7 +403,7 @@ func (db *PgDB) _addTrialMetricsTx(
 	}
 
 	metricRowID, addedMetrics, err := db.addMetricsWithMerge(ctx, tx,
-		mBody, m.TrialRunId, m.TrialId, m.GetStepsCompleted(), mGroup)
+		mBody, m.TrialRunId, m.TrialId, m.StepsCompleted, mGroup)
 	if err != nil {
 		return rollbacks, err
 	}
@@ -500,7 +513,12 @@ func (db *PgDB) addTrialMetrics(
 	}
 	return rollbacks, db.withTransaction(fmt.Sprintf("add trial metrics %s", mGroup),
 		func(tx *sqlx.Tx) error {
-			rollbacks, err = db._addTrialMetricsTx(ctx, tx, m, mGroup)
+			switch mGroup {
+			case model.ProfilingMetricGroup:
+				rollbacks, err = db._addTrialProfilingMetricsTx(ctx, tx, m)
+			default:
+				rollbacks, err = db._addTrialMetricsTx(ctx, tx, m, mGroup)
+			}
 			return err
 		})
 }
