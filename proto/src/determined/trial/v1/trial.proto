@@ -247,8 +247,10 @@ message TrialMetrics {
   int32 trial_id = 1;
   // The trial run associated with these metrics.
   int32 trial_run_id = 2;
+  // The client-reported time associated with these metrics.
+  optional google.protobuf.Timestamp report_time = 3;
   // The number of batches trained on when these metrics were reported.
-  optional int32 steps_completed = 3;
+  optional int32 steps_completed = 4;
   // The metrics for this bit of training, including:
   // - avg_metrics: metrics reduced over the reporting period).
   // - batch_metrics: (optional) per-batch metrics.

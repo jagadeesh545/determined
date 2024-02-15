@@ -157,7 +157,7 @@ WHERE trial_id = $1
 
 // addMetricsWithMerge inserts a set of metrics to the database allowing for metric merges.
 func (db *PgDB) addMetricsWithMerge(ctx context.Context, tx *sqlx.Tx, mBody *metricsBody,
-	runID, trialID int32, lastProcessedBatch *int32, mGroup model.MetricGroup,
+	reportTime *time.Time, runID, trialID int32, lastProcessedBatch *int32, mGroup model.MetricGroup,
 ) (metricID int, addedMetrics *metricsBody, err error) {
 	var existingBodyJSON model.JSONObj
 	metricGroup := string(mGroup)
@@ -177,7 +177,7 @@ FOR UPDATE`,
 	needsMerge := existingBodyJSON != nil
 
 	if !needsMerge {
-		id, err := db.addRawMetrics(ctx, tx, mBody, runID, trialID, lastProcessedBatch, mGroup)
+		id, err := db.addRawMetrics(ctx, tx, mBody, reportTime, runID, trialID, lastProcessedBatch, mGroup)
 		return id, mBody, err
 	}
 
@@ -223,7 +223,7 @@ RETURNING id`,
 
 // addRawMetrics inserts a set of raw metrics to the database and returns the metric id.
 func (db *PgDB) addRawMetrics(ctx context.Context, tx *sqlx.Tx, mBody *metricsBody,
-	runID, trialID int32, lastProcessedBatch *int32, mGroup model.MetricGroup,
+	reportTime *time.Time, runID, trialID int32, lastProcessedBatch *int32, mGroup model.MetricGroup,
 ) (int, error) {
 	if err := mGroup.Validate(); err != nil {
 		return 0, err
@@ -238,9 +238,9 @@ func (db *PgDB) addRawMetrics(ctx context.Context, tx *sqlx.Tx, mBody *metricsBo
 INSERT INTO metrics
 	(trial_id, trial_run_id, end_time, metrics, total_batches, partition_type, metric_group)
 VALUES
-	($1, $2, now(), $3, $4, $5, $6)
+	($1, $2, COALESCE($3, now()), $4, $5, $6, $7)
 RETURNING id`,
-		trialID, runID, *mBody.ToJSONObj(), lastProcessedBatch, pType, mGroup,
+		trialID, runID, reportTime, *mBody.ToJSONObj(), lastProcessedBatch, pType, mGroup,
 	).Scan(&metricRowID); err != nil {
 		return metricRowID, errors.Wrap(err, "inserting metrics")
 	}

@@ -376,7 +376,7 @@ func (db *PgDB) _addTrialProfilingMetricsTx(
 		return rollbacks, err
 	}
 
-	_, err = db.addRawMetrics(ctx, tx, mBody, m.TrialRunId, m.TrialId, nil, model.ProfilingMetricGroup)
+	_, err = db.addRawMetrics(ctx, tx, mBody, tryAsTime(m.ReportTime), m.TrialRunId, m.TrialId, nil, model.ProfilingMetricGroup)
 	return rollbacks, nil
 }
 
@@ -403,7 +403,7 @@ func (db *PgDB) _addTrialMetricsTx(
 	}
 
 	metricRowID, addedMetrics, err := db.addMetricsWithMerge(ctx, tx,
-		mBody, m.TrialRunId, m.TrialId, m.StepsCompleted, mGroup)
+		mBody, tryAsTime(m.ReportTime), m.TrialRunId, m.TrialId, m.StepsCompleted, mGroup)
 	if err != nil {
 		return rollbacks, err
 	}

@@ -7904,10 +7904,12 @@ class v1MetricType(DetEnum):
     - METRIC_TYPE_UNSPECIFIED: Zero-value (not allowed).
     - METRIC_TYPE_TRAINING: For metrics emitted during training.
     - METRIC_TYPE_VALIDATION: For metrics emitted during validation.
+    - METRIC_TYPE_PROFILING: For metrics emitted during profiling.
     """
     UNSPECIFIED = "METRIC_TYPE_UNSPECIFIED"
     TRAINING = "METRIC_TYPE_TRAINING"
     VALIDATION = "METRIC_TYPE_VALIDATION"
+    PROFILING = "METRIC_TYPE_PROFILING"
 
 class v1Metrics(Printable):
     batchMetrics: "typing.Optional[typing.Sequence[typing.Dict[str, typing.Any]]]" = None
@@ -14056,6 +14058,7 @@ class v1TrialLogsResponse(Printable):
 
 class v1TrialMetrics(Printable):
     """Metrics from the trial some duration of training."""
+    reportTime: "typing.Optional[str]" = None
     stepsCompleted: "typing.Optional[int]" = None
 
     def __init__(
@@ -14064,11 +14067,14 @@ class v1TrialMetrics(Printable):
         metrics: "v1Metrics",
         trialId: int,
         trialRunId: int,
+        reportTime: "typing.Union[str, None, Unset]" = _unset,
         stepsCompleted: "typing.Union[int, None, Unset]" = _unset,
     ):
         self.metrics = metrics
         self.trialId = trialId
         self.trialRunId = trialRunId
+        if not isinstance(reportTime, Unset):
+            self.reportTime = reportTime
         if not isinstance(stepsCompleted, Unset):
             self.stepsCompleted = stepsCompleted
 
@@ -14079,6 +14085,8 @@ class v1TrialMetrics(Printable):
             "trialId": obj["trialId"],
             "trialRunId": obj["trialRunId"],
         }
+        if "reportTime" in obj:
+            kwargs["reportTime"] = obj["reportTime"]
         if "stepsCompleted" in obj:
             kwargs["stepsCompleted"] = obj["stepsCompleted"]
         return cls(**kwargs)
@@ -14089,6 +14097,8 @@ class v1TrialMetrics(Printable):
             "trialId": self.trialId,
             "trialRunId": self.trialRunId,
         }
+        if not omit_unset or "reportTime" in vars(self):
+            out["reportTime"] = self.reportTime
         if not omit_unset or "stepsCompleted" in vars(self):
             out["stepsCompleted"] = self.stepsCompleted
         return out
@@ -15821,6 +15831,7 @@ def get_CompareTrials(
  - METRIC_TYPE_UNSPECIFIED: Zero-value (not allowed).
  - METRIC_TYPE_TRAINING: For metrics emitted during training.
  - METRIC_TYPE_VALIDATION: For metrics emitted during validation.
+ - METRIC_TYPE_PROFILING: For metrics emitted during profiling.
     - startBatches: Sample from metrics after this batch number.
     - timeSeriesFilter_doubleRange_gt: Greater than.
     - timeSeriesFilter_doubleRange_gte: Greater than or equal.
@@ -18773,6 +18784,7 @@ a metric.
  - METRIC_TYPE_UNSPECIFIED: Zero-value (not allowed).
  - METRIC_TYPE_TRAINING: For metrics emitted during training.
  - METRIC_TYPE_VALIDATION: For metrics emitted during validation.
+ - METRIC_TYPE_PROFILING: For metrics emitted during profiling.
     - offset: Skip the number of workloads before returning results. Negative values
 denote number of workloads to skip from the end before returning results.
     - orderBy: Order workloads in either ascending or descending order.
@@ -19679,6 +19691,7 @@ def get_MetricBatches(
  - METRIC_TYPE_UNSPECIFIED: Zero-value (not allowed).
  - METRIC_TYPE_TRAINING: For metrics emitted during training.
  - METRIC_TYPE_VALIDATION: For metrics emitted during validation.
+ - METRIC_TYPE_PROFILING: For metrics emitted during profiling.
     - periodSeconds: Seconds to wait when polling for updates.
     """
     _params = {
@@ -21609,6 +21622,7 @@ def get_TrialsSample(
  - METRIC_TYPE_UNSPECIFIED: Zero-value (not allowed).
  - METRIC_TYPE_TRAINING: For metrics emitted during training.
  - METRIC_TYPE_VALIDATION: For metrics emitted during validation.
+ - METRIC_TYPE_PROFILING: For metrics emitted during profiling.
     - periodSeconds: Seconds to wait when polling for updates.
     - startBatches: Beginning of window (inclusive) to fetch data for.
     """
@@ -21671,6 +21685,7 @@ def get_TrialsSnapshot(
  - METRIC_TYPE_UNSPECIFIED: Zero-value (not allowed).
  - METRIC_TYPE_TRAINING: For metrics emitted during training.
  - METRIC_TYPE_VALIDATION: For metrics emitted during validation.
+ - METRIC_TYPE_PROFILING: For metrics emitted during profiling.
     - periodSeconds: Seconds to wait when polling for updates.
     """
     _params = {
