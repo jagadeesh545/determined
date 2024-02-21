@@ -90,14 +90,6 @@ func (k *kubernetesResourcePool) SetGroupMaxSlots(msg sproto.SetGroupMaxSlots) {
 	k.getOrCreateGroup(msg.JobID).MaxSlots = msg.MaxSlots
 }
 
-func (k *kubernetesResourcePool) SetAllocationName(msg sproto.SetAllocationName) {
-	k.mu.Lock()
-	defer k.mu.Unlock()
-	k.reschedule = true
-
-	k.receiveSetAllocationName(msg)
-}
-
 func (k *kubernetesResourcePool) AllocateRequest(msg sproto.AllocateRequest) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
@@ -237,17 +229,6 @@ func (k *kubernetesResourcePool) RecoverJobPosition(msg sproto.RecoverJobPositio
 	k.queuePositions.RecoverJobPosition(msg.JobID, msg.JobPosition)
 }
 
-func (k *kubernetesResourcePool) GetAllocationSummary(msg sproto.GetAllocationSummary) *sproto.AllocationSummary {
-	k.mu.Lock()
-	defer k.mu.Unlock()
-
-	if resp := k.reqList.TaskSummary(
-		msg.ID, k.groups, kubernetesScheduler); resp != nil {
-		return resp
-	}
-	return nil
-}
-
 func (k *kubernetesResourcePool) GetAllocationSummaries(
 	msg sproto.GetAllocationSummaries,
 ) map[model.AllocationID]sproto.AllocationSummary {
@@ -281,15 +262,15 @@ func (k *kubernetesResourcePool) getResourceSummary(msg getResourceSummary) (*re
 	}, nil
 }
 
-func (k *kubernetesResourcePool) ValidateCommandResources(
-	msg sproto.ValidateCommandResourcesRequest,
-) sproto.ValidateCommandResourcesResponse {
+func (k *kubernetesResourcePool) ValidateResources(
+	msg sproto.ValidateResourcesRequest,
+) sproto.ValidateResourcesResponse {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	k.reschedule = true
 
 	fulfillable := k.maxSlotsPerPod >= msg.Slots
-	return sproto.ValidateCommandResourcesResponse{Fulfillable: fulfillable}
+	return sproto.ValidateResourcesResponse{Fulfillable: fulfillable}
 }
 
 func (k *kubernetesResourcePool) Schedule() {
@@ -462,14 +443,6 @@ func (k *kubernetesResourcePool) jobQInfo() map[model.JobID]*sproto.RMJobInfo {
 	jobQInfo := tasklist.ReduceToJobQInfo(reqs)
 	correctedJobQInfo := k.correctJobQInfo(reqs, jobQInfo)
 	return correctedJobQInfo
-}
-
-func (k *kubernetesResourcePool) receiveSetAllocationName(
-	msg sproto.SetAllocationName,
-) {
-	if task, found := k.reqList.TaskByID(msg.AllocationID); found {
-		task.Name = msg.Name
-	}
 }
 
 func (k *kubernetesResourcePool) assignResources(

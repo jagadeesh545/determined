@@ -201,8 +201,8 @@ func (a *ResourceManager) handlePatchSlotState(
 }
 
 // CheckMaxSlotsExceeded checks if the job exceeded the maximum number of slots.
-func (a *ResourceManager) CheckMaxSlotsExceeded(v *sproto.ValidateResourcePoolAvailabilityRequest) (bool, error) {
-	pool, err := a.poolByName(v.Name)
+func (a *ResourceManager) CheckMaxSlotsExceeded(v *sproto.ValidateResourcesRequest) (bool, error) {
+	pool, err := a.poolByName(v.ResourcePool)
 	if err != nil {
 		return false, err
 	}
@@ -246,20 +246,6 @@ func (a *ResourceManager) GetAllocationSummaries(
 		maps.Copy(summaries, rpSummaries)
 	}
 	return summaries, nil
-}
-
-// GetAllocationSummary implements rm.ResourceManager.
-func (a *ResourceManager) GetAllocationSummary(
-	msg sproto.GetAllocationSummary,
-) (*sproto.AllocationSummary, error) {
-	for _, pool := range a.pools {
-		summary, ok := pool.GetAllocationSummary(msg)
-		if !ok {
-			continue
-		}
-		return &summary, nil
-	}
-	return nil, errors.New("allocation not found")
 }
 
 // GetDefaultAuxResourcePool implements rm.ResourceManager.
@@ -486,19 +472,6 @@ func (a *ResourceManager) ResolveResourcePool(name string, workspaceID int, slot
 	return name, nil
 }
 
-// SetAllocationName implements rm.ResourceManager.
-func (a *ResourceManager) SetAllocationName(msg sproto.SetAllocationName) {
-	pool, err := a.poolByName(msg.ResourcePool)
-	if err != nil {
-		a.syslog.WithError(err).Warnf("set allocation name found no resource pool with name %s",
-			msg.ResourcePool)
-		return
-	}
-	// In the actor system, this was a tell before, so the `go` is to keep the same structure.  I'm not changing it
-	// out of principle during the refactor but removing it is very likely fine, just check for deadlocks.
-	go pool.SetAllocationName(msg)
-}
-
 // SetGroupMaxSlots implements rm.ResourceManager.
 func (a *ResourceManager) SetGroupMaxSlots(msg sproto.SetGroupMaxSlots) {
 	pool, err := a.poolByName(msg.ResourcePool)
@@ -551,16 +524,36 @@ func (a *ResourceManager) TaskContainerDefaults(
 	return result, nil
 }
 
-// ValidateCommandResources implements rm.ResourceManager.
-func (a *ResourceManager) ValidateCommandResources(
-	msg sproto.ValidateCommandResourcesRequest,
-) (sproto.ValidateCommandResourcesResponse, error) {
-	pool, err := a.poolByName(msg.ResourcePool)
-	if err != nil {
-		a.syslog.WithError(err).Error("recovering job position")
-		return sproto.ValidateCommandResourcesResponse{}, err
+// ValidateResources implements rm.ResourceManager.
+func (a *ResourceManager) ValidateResources(
+	msg sproto.ValidateResourcesRequest,
+) (sproto.ValidateResourcesResponse, []command.LaunchWarning, error) {
+	if msg.Slots == 0 {
+		return sproto.ValidateResourcesResponse{}, nil, nil
 	}
-	return pool.ValidateCommandResources(msg), nil
+
+	if msg.IsSingleNode {
+		pool, err := a.poolByName(msg.ResourcePool)
+		if err != nil {
+			a.syslog.WithError(err).Error("recovering job position")
+			return sproto.ValidateResourcesResponse{}, nil, fmt.Errorf(
+				"validating request for (%s, %d): %w", msg.ResourcePool, msg.Slots, err)
+		}
+		resp := pool.ValidateResources(msg)
+		if !resp.Fulfillable {
+			return resp, nil, errors.New("request unfulfillable, please try requesting less slots")
+		}
+		return sproto.ValidateResourcesResponse{}, nil, nil
+	}
+	switch exceeded, err := a.CheckMaxSlotsExceeded(&msg); {
+	case err != nil:
+		return sproto.ValidateResourcesResponse{}, nil, fmt.Errorf(
+			"validating request for (%s, %d): %w", msg.ResourcePool, msg.Slots, err)
+	case exceeded:
+		return sproto.ValidateResourcesResponse{}, []command.LaunchWarning{command.CurrentSlotsExceeded}, nil
+	default:
+		return sproto.ValidateResourcesResponse{}, nil, nil
+	}
 }
 
 // ValidateResourcePool implements rm.ResourceManager.
@@ -568,42 +561,6 @@ func (a *ResourceManager) ValidateResourcePool(name string) error {
 	_, err := a.poolByName(name)
 	if err != nil {
 		return err
-	}
-	return nil
-}
-
-// ValidateResourcePoolAvailability implements rm.ResourceManager.
-func (a *ResourceManager) ValidateResourcePoolAvailability(
-	v *sproto.ValidateResourcePoolAvailabilityRequest,
-) ([]command.LaunchWarning, error) {
-	if v.Slots == 0 {
-		return nil, nil
-	}
-
-	switch exceeded, err := a.CheckMaxSlotsExceeded(v); {
-	case err != nil:
-		return nil, fmt.Errorf("validating request for (%s, %d): %w", v.Name, v.Slots, err)
-	case exceeded:
-		return []command.LaunchWarning{command.CurrentSlotsExceeded}, nil
-	default:
-		return nil, nil
-	}
-}
-
-// ValidateResources implements rm.ResourceManager.
-func (a *ResourceManager) ValidateResources(name string, slots int, command bool) error {
-	// TODO: Replace this function usage with ValidateCommandResources
-	if slots > 0 && command {
-		switch resp, err := a.ValidateCommandResources(
-			sproto.ValidateCommandResourcesRequest{
-				ResourcePool: name,
-				Slots:        slots,
-			}); {
-		case err != nil:
-			return fmt.Errorf("validating request for (%s, %d): %w", name, slots, err)
-		case !resp.Fulfillable:
-			return errors.New("request unfulfillable, please try requesting less slots")
-		}
 	}
 	return nil
 }

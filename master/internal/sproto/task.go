@@ -76,8 +76,6 @@ type (
 		ResourcesID  *ResourcesID
 		ResourcePool string
 	}
-	// GetAllocationSummary returns the summary of the specified task.
-	GetAllocationSummary struct{ ID model.AllocationID }
 	// GetAllocationSummaries returns the summaries of all the tasks in the cluster.
 	GetAllocationSummaries struct{}
 	// AllocationSummary contains information about a task for external display.
@@ -93,23 +91,19 @@ type (
 		Priority       *int               `json:"priority"`
 		ProxyPorts     []*ProxyPortConfig `json:"proxy_ports,omitempty"`
 	}
-	// SetAllocationName sets the name of the task.
-	SetAllocationName struct {
-		Name         string
-		AllocationID model.AllocationID
-		ResourcePool string
-	}
 
-	// ValidateCommandResourcesRequest is a message asking resource manager whether the given
-	// resource pool can (or, rather, if it's not impossible to) fulfill the command request
+	// ValidateResourcesRequest is a message asking resource manager whether the given
+	// resource pool can (or, rather, if it's not impossible to) fulfill the request
 	// for the given amount of slots.
-	ValidateCommandResourcesRequest struct {
+	ValidateResourcesRequest struct {
 		ResourcePool string
 		Slots        int
+		IsSingleNode bool
+		TaskID       *model.TaskID
 	}
 
-	// ValidateCommandResourcesResponse is the response to ValidateCommandResourcesRequest.
-	ValidateCommandResourcesResponse struct {
+	// ValidateResourcesResponse is the response to ValidateResourcesRequest.
+	ValidateResourcesResponse struct {
 		// Fulfillable values:
 		// - false: impossible to fulfill
 		// - true: ok or unknown

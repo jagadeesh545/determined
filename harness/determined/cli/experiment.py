@@ -7,7 +7,7 @@ import time
 from argparse import ArgumentError, FileType, Namespace
 from pathlib import Path
 from pprint import pformat
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Union
 
 import tabulate
 import termcolor
@@ -18,10 +18,9 @@ import determined.experimental
 import determined.load
 from determined import cli
 from determined.cli import checkpoint, render
-from determined.cli.errors import CliError
 from determined.cli.ntsc import CONFIG_DESC, parse_config_overrides
 from determined.common import api, context, set_logger, util
-from determined.common.api import authentication, bindings, logs
+from determined.common.api import bindings, logs
 from determined.common.declarative_argparse import Arg, Cmd, Group
 from determined.experimental import client
 
@@ -36,79 +35,19 @@ FLUSH = False
 ZERO_OR_ONE = "?"
 
 
-@authentication.required
 def activate(args: Namespace) -> None:
     bindings.post_ActivateExperiment(cli.setup_session(args), id=args.experiment_id)
     print(f"Activated experiment {args.experiment_id}")
 
 
-@authentication.required
 def archive(args: Namespace) -> None:
     bindings.post_ArchiveExperiment(cli.setup_session(args), id=args.experiment_id)
     print(f"Archived experiment {args.experiment_id}")
 
 
-@authentication.required
 def cancel(args: Namespace) -> None:
     bindings.post_CancelExperiment(cli.setup_session(args), id=args.experiment_id)
     print(f"Canceled experiment {args.experiment_id}")
-
-
-def read_git_metadata(model_def_path: pathlib.Path) -> Tuple[str, str, str, str]:
-    """
-    Attempt to read the git metadata from the model definition directory. If
-    unsuccessful, print a descriptive error statement and exit.
-    """
-    try:
-        from git import Repo
-    except ImportError as e:  # pragma: no cover
-        raise CliError(f"Error: Please verify that git is installed correctly: {e}")
-
-    if model_def_path.is_dir():
-        repo_path = model_def_path.resolve()
-    else:
-        repo_path = model_def_path.parent.resolve()
-
-    if not repo_path.joinpath(".git").is_dir():
-        raise CliError(
-            f"Error: No git directory found at {repo_path}. Please "
-            "initialize a git repository or refrain from "
-            "using the --git feature."
-        )
-
-    try:
-        repo = Repo(str(repo_path))
-    except Exception as e:
-        raise CliError(f"Failed to initialize git repository at {repo_path}: {e}")
-
-    if repo.is_dirty():
-        raise CliError(
-            "Git working directory is dirty. Please commit the "
-            "following changes before creating an experiment "
-            "with the --git feature:\n"
-            f"\n{repo.git.status()}"
-        )
-
-    commit = repo.commit()
-    commit_hash = commit.hexsha
-    committer = f"{commit.committer.name} <{commit.committer.email}>"
-    commit_date = commit.committed_datetime.isoformat()
-
-    # To get the upstream remote URL:
-    #
-    # (1) Get the current upstream branch name
-    #     (https://stackoverflow.com/a/9753364/2596715)
-    # (2) Parse the git remote name from the upstream branch name.
-    # (3) Retrieve the URL of the remote from the git configuration.
-    try:
-        upstream_branch = repo.git.rev_parse("@{u}", abbrev_ref=True, symbolic_full_name=True)
-        remote_name = upstream_branch.split("/", 1)[0]
-        remote_url = repo.git.config(f"remote.{remote_name}.url", get=True)
-        print(f"Using remote URL '{remote_url}' from upstream branch '{upstream_branch}'")
-    except Exception as e:
-        raise CliError(f"Failed to find the upstream branch: {e}")
-
-    return (remote_url, commit_hash, committer, commit_date)
 
 
 def _parse_config_text_or_exit(
@@ -233,8 +172,8 @@ def _follow_test_experiment_logs(sess: api.Session, exp_id: int) -> None:
             time.sleep(0.2)
 
 
-@authentication.required
 def submit_experiment(args: Namespace) -> None:
+    sess = cli.setup_session(args)
     config_text = args.config_file.read()
     args.config_file.close()
     experiment_config = _parse_config_text_or_exit(config_text, args.config_file.name, args.config)
@@ -248,8 +187,6 @@ def submit_experiment(args: Namespace) -> None:
         assert yaml_dump is not None
         config_text = yaml_dump
 
-    sess = cli.setup_session(args)
-
     req = bindings.v1CreateExperimentRequest(
         activate=not args.paused,
         config=config_text,
@@ -259,11 +196,6 @@ def submit_experiment(args: Namespace) -> None:
         template=args.template,
         validateOnly=bool(args.test_mode),
     )
-
-    if args.git:
-        req.gitRemote, req.gitCommit, req.gitCommitter, req.gitCommitDate = read_git_metadata(
-            args.model_def
-        )
 
     if args.test_mode:
         print(termcolor.colored("Validating experiment configuration...", "yellow"), end="\r")
@@ -298,8 +230,8 @@ def submit_experiment(args: Namespace) -> None:
                 _follow_experiment_logs(sess, resp.experiment.id)
 
 
-@authentication.required
 def continue_experiment(args: Namespace) -> None:
+    sess = cli.setup_session(args)
     if args.config_file:
         config_text = args.config_file.read()
         args.config_file.close()
@@ -311,7 +243,6 @@ def continue_experiment(args: Namespace) -> None:
 
     config_text = util.yaml_safe_dump(experiment_config)
 
-    sess = cli.setup_session(args)
     req = bindings.v1ContinueExperimentRequest(
         id=args.experiment_id,
         overrideConfig=config_text,
@@ -359,7 +290,6 @@ def create(args: Namespace) -> None:
         submit_experiment(args)
 
 
-@authentication.required
 def delete_experiment(args: Namespace) -> None:
     if args.yes or render.yes_or_no(
         "Deleting an experiment will result in the unrecoverable \n"
@@ -374,12 +304,11 @@ def delete_experiment(args: Namespace) -> None:
         print("Aborting experiment deletion.")
 
 
-@authentication.required
 def describe(args: Namespace) -> None:
-    session = cli.setup_session(args)
+    sess = cli.setup_session(args)
     responses: List[bindings.v1GetExperimentResponse] = []
     for experiment_id in args.experiment_ids.split(","):
-        r = bindings.get_GetExperiment(session, experimentId=experiment_id)
+        r = bindings.get_GetExperiment(sess, experimentId=experiment_id)
         responses.append(r)
 
     if args.json:
@@ -427,7 +356,7 @@ def describe(args: Namespace) -> None:
     def get_all_trials(exp_id: int) -> List[bindings.trialv1Trial]:
         def get_with_offset(offset: int) -> bindings.v1GetExperimentTrialsResponse:
             return bindings.get_GetExperimentTrials(
-                session,
+                sess,
                 offset=offset,
                 experimentId=exp_id,
             )
@@ -462,7 +391,7 @@ def describe(args: Namespace) -> None:
     def get_all_workloads(trial_id: int) -> List[bindings.v1WorkloadContainer]:
         def get_with_offset(offset: int) -> bindings.v1GetTrialWorkloadsResponse:
             return bindings.get_GetTrialWorkloads(
-                session,
+                sess,
                 offset=offset,
                 trialId=trial_id,
                 limit=500,
@@ -612,7 +541,6 @@ def describe(args: Namespace) -> None:
     render.tabulate_or_csv(headers, values, args.csv, outfile)
 
 
-@authentication.required
 def experiment_logs(args: Namespace) -> None:
     sess = cli.setup_session(args)
     trials = bindings.get_GetExperimentTrials(sess, experimentId=args.experiment_id).trials
@@ -621,7 +549,7 @@ def experiment_logs(args: Namespace) -> None:
     first_trial_id = sorted(t_id.id for t_id in trials)[0]
     try:
         logs = api.trial_logs(
-            cli.setup_session(args),
+            sess,
             first_trial_id,
             head=args.head,
             tail=args.tail,
@@ -650,7 +578,6 @@ def experiment_logs(args: Namespace) -> None:
         )
 
 
-@authentication.required
 def config(args: Namespace) -> None:
     result = bindings.get_GetExperiment(
         cli.setup_session(args), experimentId=args.experiment_id
@@ -658,7 +585,6 @@ def config(args: Namespace) -> None:
     util.yaml_safe_dump(result, stream=sys.stdout, default_flow_style=False)
 
 
-@authentication.required
 def download_model_def(args: Namespace) -> None:
     resp = bindings.get_GetModelDef(cli.setup_session(args), experimentId=args.experiment_id)
     dst = f"experiment_{args.experiment_id}_model_def.tgz"
@@ -666,7 +592,6 @@ def download_model_def(args: Namespace) -> None:
         f.write(base64.b64decode(resp.b64Tgz))
 
 
-@authentication.required
 def download(args: Namespace) -> None:
     sess = cli.setup_session(args)
     exp = client.Experiment(args.experiment_id, sess)
@@ -695,13 +620,11 @@ def download(args: Namespace) -> None:
             print()
 
 
-@authentication.required
 def kill_experiment(args: Namespace) -> None:
     bindings.post_KillExperiment(cli.setup_session(args), id=args.experiment_id)
     print(f"Killed experiment {args.experiment_id}")
 
 
-@authentication.required
 def wait(args: Namespace) -> None:
     sess = cli.setup_session(args)
     exp = client.Experiment(args.experiment_id, sess)
@@ -710,17 +633,16 @@ def wait(args: Namespace) -> None:
         sys.exit(1)
 
 
-@authentication.required
 def list_experiments(args: Namespace) -> None:
-    session = cli.setup_session(args)
+    sess = cli.setup_session(args)
 
     def get_with_offset(offset: int) -> bindings.v1GetExperimentsResponse:
         return bindings.get_GetExperiments(
-            session,
+            sess,
             offset=offset,
             archived=None if args.all else False,
             limit=args.limit,
-            users=None if args.all else [authentication.must_cli_auth().get_session_user()],
+            users=None if args.all else [sess.username],
         )
 
     resps = api.read_paginated(get_with_offset, offset=args.offset, pages=args.pages)
@@ -802,13 +724,12 @@ def scalar_validation_metrics_names(
     return set()
 
 
-@authentication.required
 def list_trials(args: Namespace) -> None:
-    session = cli.setup_session(args)
+    sess = cli.setup_session(args)
 
     def get_with_offset(offset: int) -> bindings.v1GetExperimentTrialsResponse:
         return bindings.get_GetExperimentTrials(
-            session,
+            sess,
             offset=offset,
             experimentId=args.experiment_id,
             limit=args.limit,
@@ -833,98 +754,89 @@ def list_trials(args: Namespace) -> None:
     render.tabulate_or_csv(headers, values, args.csv)
 
 
-@authentication.required
 def pause(args: Namespace) -> None:
     bindings.post_PauseExperiment(cli.setup_session(args), id=args.experiment_id)
     print(f"Paused experiment {args.experiment_id}")
 
 
-@authentication.required
 def set_description(args: Namespace) -> None:
-    session = cli.setup_session(args)
-    exp = bindings.get_GetExperiment(session, experimentId=args.experiment_id).experiment
+    sess = cli.setup_session(args)
+    exp = bindings.get_GetExperiment(sess, experimentId=args.experiment_id).experiment
     exp_patch = bindings.v1PatchExperiment.from_json(exp.to_json())
     exp_patch.description = args.description
-    bindings.patch_PatchExperiment(session, body=exp_patch, experiment_id=args.experiment_id)
+    bindings.patch_PatchExperiment(sess, body=exp_patch, experiment_id=args.experiment_id)
     print(f"Set description of experiment {args.experiment_id} to '{args.description}'")
 
 
-@authentication.required
 def set_name(args: Namespace) -> None:
-    session = cli.setup_session(args)
-    exp = bindings.get_GetExperiment(session, experimentId=args.experiment_id).experiment
+    sess = cli.setup_session(args)
+    exp = bindings.get_GetExperiment(sess, experimentId=args.experiment_id).experiment
     exp_patch = bindings.v1PatchExperiment.from_json(exp.to_json())
     exp_patch.name = args.name
-    bindings.patch_PatchExperiment(session, body=exp_patch, experiment_id=args.experiment_id)
+    bindings.patch_PatchExperiment(sess, body=exp_patch, experiment_id=args.experiment_id)
     print(f"Set name of experiment {args.experiment_id} to '{args.name}'")
 
 
-@authentication.required
 def add_label(args: Namespace) -> None:
-    session = cli.setup_session(args)
-    exp = bindings.get_GetExperiment(session, experimentId=args.experiment_id).experiment
+    sess = cli.setup_session(args)
+    exp = bindings.get_GetExperiment(sess, experimentId=args.experiment_id).experiment
     exp_patch = bindings.v1PatchExperiment.from_json(exp.to_json())
     if exp_patch.labels is None:
         exp_patch.labels = []
     if args.label not in exp_patch.labels:
         exp_patch.labels = list(exp_patch.labels) + [args.label]
-        bindings.patch_PatchExperiment(session, body=exp_patch, experiment_id=args.experiment_id)
+        bindings.patch_PatchExperiment(sess, body=exp_patch, experiment_id=args.experiment_id)
     print(f"Added label '{args.label}' to experiment {args.experiment_id}")
 
 
-@authentication.required
 def remove_label(args: Namespace) -> None:
-    session = cli.setup_session(args)
-    exp = bindings.get_GetExperiment(session, experimentId=args.experiment_id).experiment
+    sess = cli.setup_session(args)
+    exp = bindings.get_GetExperiment(sess, experimentId=args.experiment_id).experiment
     exp_patch = bindings.v1PatchExperiment.from_json(exp.to_json())
     if (exp_patch.labels) and (args.label in exp_patch.labels):
         exp_patch.labels = [label for label in exp_patch.labels if label != args.label]
-        bindings.patch_PatchExperiment(session, body=exp_patch, experiment_id=args.experiment_id)
+        bindings.patch_PatchExperiment(sess, body=exp_patch, experiment_id=args.experiment_id)
     print(f"Removed label '{args.label}' from experiment {args.experiment_id}")
 
 
-@authentication.required
 def set_max_slots(args: Namespace) -> None:
-    session = cli.setup_session(args)
+    sess = cli.setup_session(args)
     exp_patch = bindings.v1PatchExperiment(
         id=args.experiment_id,
         resources=bindings.PatchExperimentPatchResources(maxSlots=args.max_slots),
     )
-    bindings.patch_PatchExperiment(session, body=exp_patch, experiment_id=args.experiment_id)
+    bindings.patch_PatchExperiment(sess, body=exp_patch, experiment_id=args.experiment_id)
     print(f"Set `max_slots` of experiment {args.experiment_id} to {args.max_slots}")
 
 
-@authentication.required
 def set_weight(args: Namespace) -> None:
-    session = cli.setup_session(args)
+    sess = cli.setup_session(args)
     exp_patch = bindings.v1PatchExperiment(
         id=args.experiment_id, resources=bindings.PatchExperimentPatchResources(weight=args.weight)
     )
-    bindings.patch_PatchExperiment(session, body=exp_patch, experiment_id=args.experiment_id)
+    bindings.patch_PatchExperiment(sess, body=exp_patch, experiment_id=args.experiment_id)
     print(f"Set `weight` of experiment {args.experiment_id} to {args.weight}")
 
 
-@authentication.required
 def set_priority(args: Namespace) -> None:
-    session = cli.setup_session(args)
+    sess = cli.setup_session(args)
     exp_patch = bindings.v1PatchExperiment(
         id=args.experiment_id,
         resources=bindings.PatchExperimentPatchResources(priority=args.priority),
     )
-    bindings.patch_PatchExperiment(session, body=exp_patch, experiment_id=args.experiment_id)
+    bindings.patch_PatchExperiment(sess, body=exp_patch, experiment_id=args.experiment_id)
     print(f"Set `priority` of experiment {args.experiment_id} to {args.priority}")
 
 
-@authentication.required
 def set_gc_policy(args: Namespace) -> None:
+    sess = cli.setup_session(args)
+    policy = {
+        "save_experiment_best": args.save_experiment_best,
+        "save_trial_best": args.save_trial_best,
+        "save_trial_latest": args.save_trial_latest,
+    }
     if not args.yes:
-        policy = {
-            "save_experiment_best": args.save_experiment_best,
-            "save_trial_best": args.save_trial_best,
-            "save_trial_latest": args.save_trial_latest,
-        }
-
-        r = api.get(args.master, f"experiments/{args.experiment_id}/preview_gc", params=policy)
+        r = sess.get(f"experiments/{args.experiment_id}/preview_gc", params=policy)
         response = r.json()
         checkpoints = response["checkpoints"]
         metric_name = response["metric_name"]
@@ -969,7 +881,6 @@ def set_gc_policy(args: Namespace) -> None:
         "in the unrecoverable deletion of checkpoints.  Do you wish to "
         "proceed?"
     ):
-        session = cli.setup_session(args)
         exp_patch = bindings.v1PatchExperiment(
             id=args.experiment_id,
             checkpointStorage=bindings.PatchExperimentPatchCheckpointStorage(
@@ -978,19 +889,17 @@ def set_gc_policy(args: Namespace) -> None:
                 saveTrialLatest=args.save_trial_latest,
             ),
         )
-        bindings.patch_PatchExperiment(session, body=exp_patch, experiment_id=args.experiment_id)
+        bindings.patch_PatchExperiment(sess, body=exp_patch, experiment_id=args.experiment_id)
         print(f"Set GC policy of experiment {args.experiment_id} to\n{pformat(policy)}")
     else:
         print("Aborting operations.")
 
 
-@authentication.required
 def unarchive(args: Namespace) -> None:
     bindings.post_UnarchiveExperiment(cli.setup_session(args), id=args.experiment_id)
     print(f"Unarchived experiment {args.experiment_id}")
 
 
-@authentication.required
 def move_experiment(args: Namespace) -> None:
     sess = cli.setup_session(args)
     (w, p) = project_by_name(sess, args.workspace_name, args.project_name)
@@ -1002,9 +911,10 @@ def move_experiment(args: Namespace) -> None:
     print(f'Moved experiment {args.experiment_id} to project "{args.project_name}"')
 
 
-@cli.login_sdk_client
 def delete_tensorboard_files(args: Namespace) -> None:
-    exp = client.get_experiment(args.experiment_id)
+    sess = cli.setup_session(args)
+    d = client.Determined._from_session(sess)
+    exp = d.get_experiment(args.experiment_id)
     exp.delete_tensorboard_files()
 
 
@@ -1127,15 +1037,6 @@ main_cmd = Cmd(
                     default=[],
                     type=Path,
                     help="additional files to copy into the task container",
-                ),
-                Arg(
-                    "-g",
-                    "--git",
-                    action="store_true",
-                    help="Associate git metadata with this experiment. This "
-                    "flag assumes that git is installed, a .git repository "
-                    "exists in the model definition directory, and that the "
-                    "git working tree of that repository is empty.",
                 ),
                 Arg(
                     "--local",

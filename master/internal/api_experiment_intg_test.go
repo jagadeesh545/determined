@@ -257,6 +257,41 @@ func TestGetTaskContextDirectoryTask(t *testing.T) {
 	require.Equal(t, string(expectedContextDirectory), string(actualString))
 }
 
+func TestMoveExperimentRunID(t *testing.T) {
+	api, curUser, ctx := setupAPITest(t, nil)
+	_, projectID := createProjectAndWorkspace(ctx, t, api)
+
+	t.Run("trial less move", func(t *testing.T) {
+		exp := createTestExp(t, api, curUser)
+		_, err := api.MoveExperiment(ctx, &apiv1.MoveExperimentRequest{
+			ExperimentId:         int32(exp.ID),
+			DestinationProjectId: int32(projectID),
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("move with trials", func(t *testing.T) {
+		trial, _ := createTestTrial(t, api, curUser)
+		_, err := api.MoveExperiment(ctx, &apiv1.MoveExperimentRequest{
+			ExperimentId:         int32(trial.ExperimentID),
+			DestinationProjectId: int32(projectID),
+		})
+		require.NoError(t, err)
+
+		e, err := api.GetExperiment(ctx, &apiv1.GetExperimentRequest{
+			ExperimentId: int32(trial.ExperimentID),
+		})
+		require.NoError(t, err)
+		require.Equal(t, projectID, int(e.Experiment.ProjectId))
+
+		var r model.Run
+		require.NoError(t, db.Bun().NewSelect().Model(&r).
+			Where("id = ?", trial.ID).
+			Scan(ctx, &r))
+		require.Equal(t, projectID, r.ProjectID)
+	})
+}
+
 func TestDeleteExperimentWithoutCheckpoints(t *testing.T) {
 	api, curUser, ctx := setupAPITest(t, nil)
 	exp := createTestExp(t, api, curUser)
@@ -870,6 +905,14 @@ func TestSearchExperiments(t *testing.T) {
 		Where("id = ?", metricTrial.ID).
 		Exec(ctx)
 	require.NoError(t, err)
+
+	// Sort by external trial ID.
+	resp, err = api.SearchExperiments(ctx, &apiv1.SearchExperimentsRequest{
+		ProjectId: req.ProjectId,
+		Sort:      ptrs.Ptr("externalTrialId=asc"),
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.Experiments, 3)
 
 	resp, err = api.SearchExperiments(ctx, req)
 	require.NoError(t, err)
@@ -1656,18 +1699,18 @@ func TestExperimentSearchApiFilterParsing(t *testing.T) {
 		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_TEXT","location":"LOCATION_TYPE_EXPERIMENT", "columnName":"tags","kind":"field","operator":"notContains", "value":"val"}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((e.config->>'labels' NOT ILIKE '%val%')))`},
 		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_EXPERIMENT", "columnName":"duration","kind":"field","operator":">", "value":0}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((extract(epoch FROM coalesce(e.end_time, now()) - e.start_time) > 0)))`},
 		{`{"filterGroup":{"children":[{"columnName":"projectId","location":"LOCATION_TYPE_EXPERIMENT", "kind":"field","operator":">=","value":-1}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((project_id >= -1)))`},
-		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_accuracy.mean","kind":"field","operator":">=","value":0}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((trials.summary_metrics->'validation_metrics'->'validation_accuracy'->>'mean')::float8 >= 0)))`},
-		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_TEXT","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_string.min","kind":"field","operator":"=","value":"string"}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((trials.summary_metrics->'validation_metrics'->'validation_string'->>'min' = 'string')))`},
-		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_TEXT","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_string.max","kind":"field","operator":"!=","value":"string"}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((trials.summary_metrics->'validation_metrics'->'validation_string'->>'max' != 'string')))`},
-		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_TEXT","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_string.mean","kind":"field","operator":"contains","value":"string"}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((trials.summary_metrics->'validation_metrics'->'validation_string'->>'mean' LIKE '%string%')))`},
-		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_TEXT","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_string.min","kind":"field","operator":"notContains","value":"string"}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((trials.summary_metrics->'validation_metrics'->'validation_string'->>'min' NOT LIKE '%string%')))`},
-		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_error.min","kind":"field","operator":">=","value":0}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((trials.summary_metrics->'validation_metrics'->'validation_error'->>'min')::float8 >= 0)))`},
-		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_error.max","kind":"field","operator":"notEmpty","value":0}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((trials.summary_metrics->'validation_metrics'->'validation_error'->>'max')::float8 IS NOT NULL)))`},
-		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_error.max","kind":"field","operator":"isEmpty","value":0}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((trials.summary_metrics->'validation_metrics'->'validation_error'->>'max')::float8 IS NULL)))`},
-		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.x.max","kind":"field","operator":"=","value": 0}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((trials.summary_metrics->'validation_metrics'->'x'->>'max')::float8 = 0)))`},
-		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.loss.last","kind":"field","operator":"!=","value":0.004}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((trials.summary_metrics->'validation_metrics'->'loss'->>'last')::float8 != 0.004)))`},
-		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_accuracy.max","kind":"field","operator":"<","value":-3}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((trials.summary_metrics->'validation_metrics'->'validation_accuracy'->>'max')::float8 < -3)))`},
-		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_accuracy.min","kind":"field","operator":"<=","value":10}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((trials.summary_metrics->'validation_metrics'->'validation_accuracy'->>'min')::float8 <= 10)))`},
+		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_accuracy.mean","kind":"field","operator":">=","value":0}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((r.summary_metrics->'validation_metrics'->'validation_accuracy'->>'mean')::float8 >= 0)))`},
+		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_TEXT","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_string.min","kind":"field","operator":"=","value":"string"}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((r.summary_metrics->'validation_metrics'->'validation_string'->>'min' = 'string')))`},
+		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_TEXT","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_string.max","kind":"field","operator":"!=","value":"string"}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((r.summary_metrics->'validation_metrics'->'validation_string'->>'max' != 'string')))`},
+		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_TEXT","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_string.mean","kind":"field","operator":"contains","value":"string"}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((r.summary_metrics->'validation_metrics'->'validation_string'->>'mean' LIKE '%string%')))`},
+		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_TEXT","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_string.min","kind":"field","operator":"notContains","value":"string"}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((r.summary_metrics->'validation_metrics'->'validation_string'->>'min' NOT LIKE '%string%')))`},
+		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_error.min","kind":"field","operator":">=","value":0}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((r.summary_metrics->'validation_metrics'->'validation_error'->>'min')::float8 >= 0)))`},
+		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_error.max","kind":"field","operator":"notEmpty","value":0}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((r.summary_metrics->'validation_metrics'->'validation_error'->>'max')::float8 IS NOT NULL)))`},
+		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_error.max","kind":"field","operator":"isEmpty","value":0}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((r.summary_metrics->'validation_metrics'->'validation_error'->>'max')::float8 IS NULL)))`},
+		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.x.max","kind":"field","operator":"=","value": 0}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((r.summary_metrics->'validation_metrics'->'x'->>'max')::float8 = 0)))`},
+		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.loss.last","kind":"field","operator":"!=","value":0.004}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((r.summary_metrics->'validation_metrics'->'loss'->>'last')::float8 != 0.004)))`},
+		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_accuracy.max","kind":"field","operator":"<","value":-3}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((r.summary_metrics->'validation_metrics'->'validation_accuracy'->>'max')::float8 < -3)))`},
+		{`{"filterGroup":{"children":[{"type":"COLUMN_TYPE_NUMBER","location":"LOCATION_TYPE_VALIDATIONS", "columnName":"validation.validation_accuracy.min","kind":"field","operator":"<=","value":10}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((r.summary_metrics->'validation_metrics'->'validation_accuracy'->>'min')::float8 <= 10)))`},
 		{`{"filterGroup":{"children":[{"columnName":"projectId","kind":"field","operator":">=","value":null}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((true)))`},
 		{`{"filterGroup":{"children":[{"columnName":"id","kind":"field","operator":"=","value":1},{"children":[{"columnName":"id","kind":"field","operator":"=","value":2},{"columnName":"id","kind":"field","operator":"=","value":3}],"conjunction":"and","kind":"group"},{"columnName":"id","kind":"field","operator":"=","value":4},{"children":[{"columnName":"id","kind":"field","operator":"=","value":5}],"conjunction":"and","kind":"group"}],"conjunction":"and","kind":"group"},"showArchived":true}`, `(((e.id = 1)) AND (((e.id = 2)) AND ((e.id = 3))) AND ((e.id = 4)) AND (((e.id = 5))))`},
 		{`{"filterGroup":{"children":[{"children":[{"columnName":"checkpointCount","kind":"field","operator":"=","value":4},{"columnName":"numTrials","kind":"field","operator":"=","value":1},{"columnName":"progress","kind":"field","operator":"=","value":100}],"conjunction":"and","kind":"group"}],"conjunction":"and","kind":"group"},"showArchived":true}`, `((((e.checkpoint_count = 4)) AND (((SELECT COUNT(*) FROM trials t WHERE e.id = t.experiment_id) = 1)) AND ((ROUND(COALESCE(progress, 0) * 100)::INTEGER = 100))))`},

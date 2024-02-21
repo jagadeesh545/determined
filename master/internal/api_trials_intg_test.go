@@ -20,7 +20,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"github.com/determined-ai/determined/master/pkg/protoutils/protoconverter"
 
@@ -571,9 +570,11 @@ func TestReportCheckpoint(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	int32TrialID := int32(tr.ID)
+	int32ExperimentID := int32(tr.ExperimentID)
 	req.Checkpoint.Training = &checkpointv1.CheckpointTrainingMetadata{
-		TrialId:           wrapperspb.Int32(int32(tr.ID)),
-		ExperimentId:      wrapperspb.Int32(int32(tr.ExperimentID)),
+		TrialId:           &int32TrialID,
+		ExperimentId:      &int32ExperimentID,
 		ExperimentConfig:  getExperimentResp.Config,
 		Hparams:           nil,
 		TrainingMetrics:   &commonv1.Metrics{},
@@ -1326,7 +1327,7 @@ func TestTrialSourceInfoModelVersion(t *testing.T) {
 
 	// Create a model_version to index with
 	conv := &protoconverter.ProtoConverter{}
-	modelVersion := RegisterCheckpointAsModelVersion(t, api.m.db, conv.ToUUID(checkpointUUID))
+	modelVersion := RegisterCheckpointAsModelVersion(ctx, t, api.m.db, conv.ToUUID(checkpointUUID))
 
 	// Create a TrialSourceInfo associated with each of the two trials.
 	resp, err := trials.CreateTrialSourceInfo(
@@ -1364,4 +1365,31 @@ func TestTrialSourceInfoModelVersion(t *testing.T) {
 	// One trial is valid and it has one aggregated MetricsReport
 	require.Equal(t, 1, len(getMVResp.Metrics))
 	require.Equal(t, int32(infTrial.ID), getMVResp.Metrics[0].TrialId)
+}
+
+func TestGetTrialByExternalID(t *testing.T) {
+	api, curUser, ctx := setupAPITest(t, nil)
+	trial, _ := createTestTrial(t, api, curUser)
+	externalExpID := uuid.New().String()
+	externalTrialID := "trial"
+
+	_, err := db.Bun().NewUpdate().Model(&model.Experiment{}).
+		Where("id = ?", trial.ExperimentID).
+		Set("external_experiment_id = ?", externalExpID).
+		Exec(ctx)
+	require.NoError(t, err)
+
+	_, err = db.Bun().NewUpdate().Model(&model.Run{}).
+		Where("id = ?", trial.ID).
+		Set("external_run_id = ?", externalTrialID).
+		Exec(ctx)
+	require.NoError(t, err)
+
+	resp, err := api.GetTrialByExternalID(ctx, &apiv1.GetTrialByExternalIDRequest{
+		ExternalExperimentId: externalExpID,
+		ExternalTrialId:      externalTrialID,
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, int(resp.Trial.Id), trial.ID)
 }

@@ -1,28 +1,12 @@
-import subprocess
-import time
-
 import pytest
 
 from determined.cli import ntsc
-from determined.common import api, util
+from determined.common import util
 from determined.common.api import bindings
 from tests import api_utils
 from tests import config as conf
-
-
-def wait_for_task_state(
-    test_session: api.Session,
-    task_id: str,
-    expected_state: bindings.v1GenericTaskState,
-    timeout: int,
-) -> bool:
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        resp = bindings.get_GetTask(test_session, taskId=task_id)
-        if expected_state == resp.task.taskState:
-            return True
-        time.sleep(0.1)
-    return False
+from tests import detproc
+from tests.task import task
 
 
 @pytest.mark.e2e_cpu
@@ -30,6 +14,7 @@ def test_create_generic_task() -> None:
     """
     Start a simple task with a context directory called from the task CLI
     """
+    sess = api_utils.user_session()
     command = [
         "det",
         "-m",
@@ -41,7 +26,12 @@ def test_create_generic_task() -> None:
         conf.fixtures_path("generic_task"),
     ]
 
-    subprocess.run(command, universal_newlines=True, stdout=subprocess.PIPE, check=True)
+    output = detproc.check_output(sess, command)
+
+    id_index = output.find("Created task ")
+    task_id = output[id_index + len("Created task ") :].strip()
+
+    task.wait_for_task_state(sess, task_id, bindings.v1GenericTaskState.COMPLETED)
 
 
 @pytest.mark.e2e_cpu
@@ -49,7 +39,7 @@ def test_generic_task_completion() -> None:
     """
     Start a simple task and check for task completion
     """
-    test_session = api_utils.determined_test_session()
+    sess = api_utils.user_session()
 
     with open(conf.fixtures_path("generic_task/test_config.yaml"), "r") as config_file:
         # Create task
@@ -64,14 +54,10 @@ def test_generic_task_completion() -> None:
         inheritContext=False,
         noPause=False,
     )
-    task_resp = bindings.post_CreateGenericTask(test_session, body=req)
+    task_resp = bindings.post_CreateGenericTask(sess, body=req)
 
     # Check for complete state
-    is_valid_state = wait_for_task_state(
-        test_session, task_resp.taskId, bindings.v1GenericTaskState.COMPLETED, timeout=30
-    )
-    if not is_valid_state:
-        pytest.fail("task failed to complete after 30 seconds")
+    task.wait_for_task_state(sess, task_resp.taskId, bindings.v1GenericTaskState.COMPLETED)
 
 
 @pytest.mark.e2e_cpu
@@ -79,7 +65,7 @@ def test_create_generic_task_error() -> None:
     """
     Start a simple task that fails and check for error task state
     """
-    test_session = api_utils.determined_test_session()
+    sess = api_utils.user_session()
 
     with open(conf.fixtures_path("generic_task/test_config_error.yaml"), "r") as config_file:
         # Create task
@@ -94,14 +80,10 @@ def test_create_generic_task_error() -> None:
         inheritContext=False,
         noPause=False,
     )
-    task_resp = bindings.post_CreateGenericTask(test_session, body=req)
+    task_resp = bindings.post_CreateGenericTask(sess, body=req)
 
     # Check for error state
-    is_valid_state = wait_for_task_state(
-        test_session, task_resp.taskId, bindings.v1GenericTaskState.ERROR, timeout=30
-    )
-    if not is_valid_state:
-        pytest.fail("task failed to complete after 30 seconds")
+    task.wait_for_task_state(sess, task_resp.taskId, bindings.v1GenericTaskState.ERROR)
 
 
 @pytest.mark.e2e_cpu
@@ -109,7 +91,7 @@ def test_generic_task_config() -> None:
     """
     Start a simple task without a context directory and grab its config
     """
-    test_session = api_utils.determined_test_session()
+    sess = api_utils.user_session()
 
     with open(conf.fixtures_path("generic_task/test_config.yaml"), "r") as config_file:
         # Create task
@@ -124,16 +106,18 @@ def test_generic_task_config() -> None:
         inheritContext=False,
         noPause=False,
     )
-    task_resp = bindings.post_CreateGenericTask(test_session, body=req)
+    task_resp = bindings.post_CreateGenericTask(sess, body=req)
 
     # Get config
     command = ["det", "-m", conf.make_master_url(), "task", "config", task_resp.taskId]
 
-    res = subprocess.run(command, universal_newlines=True, stdout=subprocess.PIPE, check=True)
+    output = detproc.check_output(sess, command)
 
-    result_config = util.yaml_safe_load(res.stdout)
+    result_config = util.yaml_safe_load(output)
     expected_config = {"entrypoint": ["echo", "task ran"]}
     assert result_config == expected_config
+
+    task.wait_for_task_state(sess, task_resp.taskId, bindings.v1GenericTaskState.COMPLETED)
 
 
 @pytest.mark.e2e_cpu
@@ -141,7 +125,7 @@ def test_generic_task_create_with_fork() -> None:
     """
     Start a simple task without a context directory and grab its config
     """
-    test_session = api_utils.determined_test_session()
+    sess = api_utils.user_session()
 
     with open(conf.fixtures_path("generic_task/test_config.yaml"), "r") as config_file:
         # Create initial task
@@ -157,7 +141,7 @@ def test_generic_task_create_with_fork() -> None:
         inheritContext=False,
         noPause=False,
     )
-    task_resp = bindings.post_CreateGenericTask(test_session, body=req)
+    task_resp = bindings.post_CreateGenericTask(sess, body=req)
 
     # Create fork task
     with open(conf.fixtures_path("generic_task/test_config_fork.yaml"), "r") as fork_config_file:
@@ -173,15 +157,18 @@ def test_generic_task_create_with_fork() -> None:
         inheritContext=False,
         noPause=False,
     )
-    fork_task_resp = bindings.post_CreateGenericTask(test_session, body=req)
+    fork_task_resp = bindings.post_CreateGenericTask(sess, body=req)
 
     # Get fork task Config
     command = ["det", "-m", conf.make_master_url(), "task", "config", fork_task_resp.taskId]
 
-    res = subprocess.run(command, universal_newlines=True, stdout=subprocess.PIPE, check=True)
-    result_config = util.yaml_safe_load(res.stdout)
+    output = detproc.check_output(sess, command)
+    result_config = util.yaml_safe_load(output)
     expected_config = {"entrypoint": ["echo", "forked"]}
     assert result_config == expected_config
+
+    task.wait_for_task_state(sess, task_resp.taskId, bindings.v1GenericTaskState.COMPLETED)
+    task.wait_for_task_state(sess, fork_task_resp.taskId, bindings.v1GenericTaskState.COMPLETED)
 
 
 @pytest.mark.e2e_cpu
@@ -189,7 +176,7 @@ def test_kill_generic_task() -> None:
     """
     Start a simple task without a context directory and grab its config
     """
-    test_session = api_utils.determined_test_session()
+    sess = api_utils.user_session()
 
     with open(conf.fixtures_path("generic_task/test_config.yaml"), "r") as config_file:
         # Create task
@@ -205,15 +192,15 @@ def test_kill_generic_task() -> None:
         inheritContext=False,
         noPause=False,
     )
-    task_resp = bindings.post_CreateGenericTask(test_session, body=req)
+    task_resp = bindings.post_CreateGenericTask(sess, body=req)
 
     # Kill task
     command = ["det", "-m", conf.make_master_url(), "task", "kill", task_resp.taskId]
 
-    subprocess.run(command, universal_newlines=True, stdout=subprocess.PIPE, check=True)
+    detproc.check_call(sess, command)
 
-    kill_resp = bindings.get_GetTask(test_session, taskId=task_resp.taskId)
-    assert kill_resp.task.taskState == bindings.v1GenericTaskState.CANCELED
+    bindings.get_GetTask(sess, taskId=task_resp.taskId)
+    task.wait_for_task_state(sess, task_resp.taskId, bindings.v1GenericTaskState.CANCELED)
 
 
 @pytest.mark.e2e_cpu
@@ -221,7 +208,7 @@ def test_pause_and_unpause_generic_task() -> None:
     """
     Start a simple task without a context directory and grab its config
     """
-    test_session = api_utils.determined_test_session()
+    sess = api_utils.user_session()
 
     with open(conf.fixtures_path("generic_task/test_config_pause.yaml"), "r") as config_file:
         # Create task
@@ -237,20 +224,22 @@ def test_pause_and_unpause_generic_task() -> None:
         inheritContext=False,
         noPause=False,
     )
-    task_resp = bindings.post_CreateGenericTask(test_session, body=req)
+    task_resp = bindings.post_CreateGenericTask(sess, body=req)
 
     # Pause task
     command = ["det", "-m", conf.make_master_url(), "task", "pause", task_resp.taskId]
 
-    subprocess.run(command, universal_newlines=True, stdout=subprocess.PIPE, check=True)
+    detproc.check_call(sess, command)
 
-    pause_resp = bindings.get_GetTask(test_session, taskId=task_resp.taskId)
+    pause_resp = bindings.get_GetTask(sess, taskId=task_resp.taskId)
     assert pause_resp.task.taskState == bindings.v1GenericTaskState.PAUSED
 
     # Unpause task
     command = ["det", "-m", conf.make_master_url(), "task", "unpause", task_resp.taskId]
 
-    subprocess.run(command, universal_newlines=True, stdout=subprocess.PIPE, check=True)
+    detproc.check_call(sess, command)
 
-    unpause_resp = bindings.get_GetTask(test_session, taskId=task_resp.taskId)
+    unpause_resp = bindings.get_GetTask(sess, taskId=task_resp.taskId)
     assert unpause_resp.task.taskState == bindings.v1GenericTaskState.ACTIVE
+
+    task.wait_for_task_state(sess, task_resp.taskId, bindings.v1GenericTaskState.COMPLETED)

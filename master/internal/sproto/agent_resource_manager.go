@@ -15,6 +15,8 @@ type (
 	// StartTaskContainer notifies the agent to start the task with the provided task spec.
 	StartTaskContainer struct {
 		AllocationID model.AllocationID
+		TaskID       model.TaskID
+		JobID        model.JobID
 		aproto.StartContainer
 
 		LogContext logger.Context
@@ -93,13 +95,4 @@ func (t TerminateDecision) String() string {
 		item = append(item, fmt.Sprintf("%s (reason: %s)", id, reason))
 	}
 	return strings.Join(item, ",")
-}
-
-// ValidateResourcePoolAvailabilityRequest contains the params for ValidateResourcePoolAvailability().
-type ValidateResourcePoolAvailabilityRequest struct {
-	Name  string
-	Slots int
-	// Optional. If it is provided, ValidateResourcePoolAvailability() validates resource pool
-	// availability for a specific task.
-	TaskID *model.TaskID
 }

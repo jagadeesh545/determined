@@ -393,8 +393,6 @@ func ExperimentFromProto(e *experimentv1.Experiment) (*Experiment, error) {
 		EndTime:   endTime,
 		ParentID:  parentID,
 		Archived:  e.Archived,
-		// GitRemote:
-		// GitCommitDate
 		OwnerID:   uid,
 		Username:  e.Username,
 		ProjectID: int(e.ProjectId),
@@ -464,9 +462,10 @@ type Trial struct {
 }
 
 // ToRunAndTrialV2 converts a trial to a run.
-func (t *Trial) ToRunAndTrialV2() (*Run, *TrialV2) {
+func (t *Trial) ToRunAndTrialV2(experimentsProjectID int) (*Run, *TrialV2) {
 	r := &Run{
 		ID:                    t.ID,
+		ProjectID:             experimentsProjectID,
 		ExperimentID:          t.ExperimentID,
 		State:                 t.State,
 		StartTime:             t.StartTime,
@@ -503,6 +502,7 @@ type Run struct {
 	bun.BaseModel `bun:"table:runs"`
 
 	ID                    int            `db:"id" bun:",pk,autoincrement"`
+	ProjectID             int            `db:"project_id" bun:"project_id"`
 	ExperimentID          int            `db:"experiment_id"`
 	State                 State          `db:"state"`
 	StartTime             time.Time      `db:"start_time"`
@@ -510,7 +510,7 @@ type Run struct {
 	HParams               map[string]any `db:"hparams" bun:"hparams"`
 	WarmStartCheckpointID *int           `db:"warm_start_checkpoint_id"`
 	TotalBatches          int            `db:"total_batches"`
-	ExternalRunID         *string        `db:"external_trial_id"`
+	ExternalRunID         *string        `db:"external_run_id"`
 	RestartID             int            `db:"restart_id"`
 	Restarts              int            `db:"restarts"`
 	RunnerState           string         `db:"runner_state"`

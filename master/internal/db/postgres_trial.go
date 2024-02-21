@@ -13,10 +13,12 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/uptrace/bun"
+	"golang.org/x/exp/maps"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/determined-ai/determined/master/internal/api"
 	"github.com/determined-ai/determined/master/pkg/model"
+	"github.com/determined-ai/determined/master/pkg/set"
 	"github.com/determined-ai/determined/proto/pkg/trialv1"
 )
 
@@ -27,7 +29,11 @@ func AddTrial(ctx context.Context, trial *model.Trial, taskID model.TaskID) erro
 	}
 
 	err := Bun().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		run, v2 := trial.ToRunAndTrialV2()
+		run, v2, err := trialToRunAndTrialV2(ctx, tx, trial)
+		if err != nil {
+			return fmt.Errorf("converting trial to run and trialv2: %w", err)
+		}
+
 		if _, err := tx.NewInsert().Model(run).Returning("id").Exec(ctx); err != nil {
 			return fmt.Errorf("inserting trial run model: %w", err)
 		}
@@ -61,7 +67,11 @@ func UpsertTrialByExternalIDTx(
 		return errors.Errorf("error adding a trial with non-zero id %v", trial.ID)
 	}
 
-	run, v2 := trial.ToRunAndTrialV2()
+	run, v2, err := trialToRunAndTrialV2(ctx, tx, trial)
+	if err != nil {
+		return fmt.Errorf("upsert converting trial to run and trialv2: %w", err)
+	}
+
 	if _, err := tx.NewInsert().Model(run).
 		On("CONFLICT (experiment_id, external_run_id) DO UPDATE").
 		Set("hparams = EXCLUDED.hparams").
@@ -161,7 +171,11 @@ func UpdateTrial(ctx context.Context, id int, newState model.State) error {
 	}
 
 	return Bun().RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		run, _ := trial.ToRunAndTrialV2()
+		run, _, err := trialToRunAndTrialV2(ctx, tx, trial)
+		if err != nil {
+			return fmt.Errorf("update trial converting trial to run and trialv2: %w", err)
+		}
+
 		if _, err := tx.NewUpdate().Model(run).Column(toUpdate...).Where("id = ?", id).
 			Exec(ctx); err != nil {
 			return fmt.Errorf("error updating (%v) in trial %v: %w", strings.Join(toUpdate, ", "), id, err)
@@ -210,8 +224,15 @@ func (db *PgDB) UpdateTrialFields(id int, newRunnerMetadata *trialv1.TrialRunner
 		toUpdate = append(toUpdate, "restarts")
 	}
 
-	run, _ := trial.ToRunAndTrialV2()
+	run, _, err := trialToRunAndTrialV2(ctx, Bun(), trial)
+	if err != nil {
+		return fmt.Errorf("converting trial to run for update: %w", err)
+	}
+
 	_, err = Bun().NewUpdate().Model(run).Column(toUpdate...).Where("id = ?", id).Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("updating trial fields: %w", err)
+	}
 
 	return err
 }
@@ -685,6 +706,22 @@ func AddCheckpointMetadata(ctx context.Context, m *model.CheckpointV2, runID int
 	return nil
 }
 
+func trialToRunAndTrialV2(
+	ctx context.Context, tx bun.IDB, trial *model.Trial,
+) (*model.Run, *model.TrialV2, error) {
+	var e model.Experiment
+	if err := tx.NewSelect().Model(&e).
+		Column("project_id").
+		Where("id = ?", trial.ExperimentID).
+		Scan(ctx, &e); err != nil {
+		return nil, nil, fmt.Errorf("getting experiment's project ID %d: %w", trial.ExperimentID, err)
+	}
+
+	run, v2 := trial.ToRunAndTrialV2(e.ProjectID)
+
+	return run, v2, nil
+}
+
 // checkTrialRunID checks that the trial is currently on the given run.
 func checkTrialRunID(ctx context.Context, tx *sqlx.Tx, trialID, runID int32) error {
 	var cRunID int
@@ -820,4 +857,51 @@ searcher_metric_value_signed =
 WHERE t.id = $1;
 `, trialID, trialRunID, stepsCompleted)
 	return errors.Wrapf(err, "error updating best validation for trial %d", trialID)
+}
+
+// UpdateCheckpointSizeTx which updates checkpoint size and count to experiment and trial, is duplicated here.
+// Remove from this file when bunifying. Original is in master/internal/checkpoints/postgres_checkpoints.go.
+func UpdateCheckpointSizeTx(ctx context.Context, idb bun.IDB, checkpoints []uuid.UUID) error {
+	if idb == nil {
+		idb = Bun()
+	}
+
+	var experimentIDs []int
+	err := idb.NewRaw(`
+UPDATE runs SET checkpoint_size=sub.size, checkpoint_count=sub.count FROM (
+	SELECT
+		run_id,
+		COALESCE(SUM(size) FILTER (WHERE state != 'DELETED'), 0) AS size,
+		COUNT(*) FILTER (WHERE state != 'DELETED') AS count
+	FROM checkpoints_v2
+	JOIN run_checkpoints rc ON rc.checkpoint_id = checkpoints_v2.uuid
+	WHERE rc.run_id IN (
+		SELECT run_id FROM run_checkpoints WHERE checkpoint_id IN (?)
+	)
+	GROUP BY run_id
+) sub
+WHERE runs.id = sub.run_id
+RETURNING experiment_id`, bun.In(checkpoints)).Scan(ctx, &experimentIDs)
+	if err != nil {
+		return errors.Wrap(err, "errors updating trial checkpoint sizes and counts")
+	}
+	if len(experimentIDs) == 0 { // Checkpoint potentially to non experiment.
+		return nil
+	}
+
+	uniqueExpIDs := maps.Keys(set.FromSlice(experimentIDs))
+	var res bool // Need this since bun.NewRaw() doesn't have a Exec(ctx) method.
+	err = idb.NewRaw(`
+UPDATE experiments SET checkpoint_size=sub.size, checkpoint_count=sub.count FROM (
+	SELECT experiment_id, SUM(checkpoint_size) AS size, SUM(checkpoint_count) as count FROM trials
+	WHERE experiment_id IN (?)
+	GROUP BY experiment_id
+) sub
+WHERE experiments.id = sub.experiment_id
+RETURNING true`, bun.In(uniqueExpIDs)).Scan(ctx, &res)
+	if err != nil {
+		return errors.Wrap(err, "errors updating experiment checkpoint sizes and counts")
+	}
+
+	return nil
 }

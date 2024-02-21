@@ -229,18 +229,6 @@ func (rp *resourcePool) restoreResources(
 	return nil
 }
 
-func (rp *resourcePool) SetAllocationName(msg sproto.SetAllocationName) {
-	rp.mu.Lock()
-	defer rp.mu.Unlock()
-	rp.receiveSetTaskName(msg)
-}
-
-func (rp *resourcePool) receiveSetTaskName(msg sproto.SetAllocationName) {
-	if task, found := rp.taskList.TaskByID(msg.AllocationID); found {
-		task.Name = msg.Name
-	}
-}
-
 func (rp *resourcePool) ResourcesReleased(msg sproto.ResourcesReleased) {
 	rp.mu.Lock()
 	defer rp.mu.Unlock()
@@ -571,17 +559,6 @@ func (rp *resourcePool) NotifyAgentUpdated() {
 	rp.reschedule = true
 }
 
-func (rp *resourcePool) GetAllocationSummary(msg sproto.GetAllocationSummary) (sproto.AllocationSummary, bool) {
-	rp.mu.Lock()
-	defer rp.mu.Unlock()
-
-	resp := rp.taskList.TaskSummary(msg.ID, rp.groups, rp.config.Scheduler.GetType())
-	if resp == nil {
-		return sproto.AllocationSummary{}, false
-	}
-	return *resp, true
-}
-
 func (rp *resourcePool) GetAllocationSummaries(
 	msg sproto.GetAllocationSummaries,
 ) map[model.AllocationID]sproto.AllocationSummary {
@@ -590,9 +567,9 @@ func (rp *resourcePool) GetAllocationSummaries(
 	return rp.taskList.TaskSummaries(rp.groups, rp.config.Scheduler.GetType())
 }
 
-func (rp *resourcePool) ValidateCommandResources(
-	msg sproto.ValidateCommandResourcesRequest,
-) sproto.ValidateCommandResourcesResponse {
+func (rp *resourcePool) ValidateResources(
+	msg sproto.ValidateResourcesRequest,
+) sproto.ValidateResourcesResponse {
 	rp.mu.Lock()
 	defer rp.mu.Unlock()
 
@@ -614,7 +591,7 @@ func (rp *resourcePool) ValidateCommandResources(
 		fulfillable = maxSlots >= msg.Slots
 	}
 
-	return sproto.ValidateCommandResourcesResponse{Fulfillable: fulfillable}
+	return sproto.ValidateResourcesResponse{Fulfillable: fulfillable}
 }
 
 // GetResourceSummary requests a summary of the resources used by the resource pool (agents, slots, cpu containers).

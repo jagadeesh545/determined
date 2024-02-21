@@ -15,6 +15,7 @@ import (
 
 	"github.com/determined-ai/determined/master/internal/api"
 	"github.com/determined-ai/determined/master/internal/authz"
+	"github.com/determined-ai/determined/master/internal/checkpoints"
 	detContext "github.com/determined-ai/determined/master/internal/context"
 	"github.com/determined-ai/determined/master/internal/db"
 	expauth "github.com/determined-ai/determined/master/internal/experiment"
@@ -118,12 +119,12 @@ func (m *Master) getExperimentCheckpointsToGC(c echo.Context) (interface{}, erro
 		return nil, err
 	}
 
-	checkpointUUIDs, err := m.db.ExperimentCheckpointsToGCRaw(
-		args.ExperimentID, args.ExperimentBest, args.TrialBest, args.TrialLatest)
+	checkpointUUIDs, err := expauth.ExperimentCheckpointsToGCRaw(
+		c.Request().Context(), args.ExperimentID, args.ExperimentBest, args.TrialBest, args.TrialLatest)
 	if err != nil {
 		return nil, err
 	}
-	checkpointsDB, err := m.db.CheckpointByUUIDs(checkpointUUIDs)
+	checkpointsDB, err := checkpoints.CheckpointByUUIDs(c.Request().Context(), checkpointUUIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -297,9 +298,6 @@ func (m *Master) parseCreateExperiment(req *apiv1.CreateExperimentRequest, owner
 	poolName, _, err := m.ResolveResources(resources.ResourcePool(), resources.SlotsPerTrial(), workspaceID, isSingleNode)
 	if err != nil {
 		return nil, nil, config, nil, nil, errors.Wrapf(err, "invalid resource configuration")
-	}
-	if err = m.rm.ValidateResources(poolName, resources.SlotsPerTrial(), isSingleNode); err != nil {
-		return nil, nil, config, nil, nil, errors.Wrapf(err, "error validating resources")
 	}
 	taskContainerDefaults, err := m.rm.TaskContainerDefaults(
 		poolName,
