@@ -19,10 +19,8 @@ def mksess(host: str, port: int, username: str = "determined", password: str = "
     """
     Since this file frequently creates new masters, always create a fresh Session.
     """
-
     master_url = api.canonicalize_master_url(f"http://{host}:{port}")
-    utp = authentication.login(master_url, username=username, password=password)
-    return api.Session(master_url, utp, cert=None)
+    return authentication.login(master_url, username=username, password=password)
 
 
 def det_deploy(subcommand: List) -> None:
