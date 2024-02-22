@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -368,7 +369,7 @@ func (db *PgDB) updateTotalBatches(ctx context.Context, tx *sqlx.Tx, trialID int
 }
 
 func (db *PgDB) _addTrialProfilingMetricsTx(
-	ctx context.Context, tx *sqlx.Tx, m *trialv1.TrialMetrics,
+	ctx context.Context, tx *sqlx.Tx, m *trialv1.TrialMetrics, mGroup model.MetricGroup,
 ) (rollbacks int, err error) {
 	mBody := newMetricsBody(m.Metrics.AvgMetrics, m.Metrics.BatchMetrics, false)
 
@@ -376,7 +377,7 @@ func (db *PgDB) _addTrialProfilingMetricsTx(
 		return rollbacks, err
 	}
 
-	_, err = db.addRawMetrics(ctx, tx, mBody, tryAsTime(m.ReportTime), m.TrialRunId, m.TrialId, nil, model.ProfilingMetricGroup)
+	_, err = db.addRawMetrics(ctx, tx, mBody, tryAsTime(m.ReportTime), m.TrialRunId, m.TrialId, nil, mGroup)
 	return rollbacks, nil
 }
 
@@ -513,9 +514,9 @@ func (db *PgDB) addTrialMetrics(
 	}
 	return rollbacks, db.withTransaction(fmt.Sprintf("add trial metrics %s", mGroup),
 		func(tx *sqlx.Tx) error {
-			switch mGroup {
-			case model.ProfilingMetricGroup:
-				rollbacks, err = db._addTrialProfilingMetricsTx(ctx, tx, m)
+			switch {
+			case slices.Contains(model.ProfilingMetricGroups, mGroup):
+				rollbacks, err = db._addTrialProfilingMetricsTx(ctx, tx, m, mGroup)
 			default:
 				rollbacks, err = db._addTrialMetricsTx(ctx, tx, m, mGroup)
 			}

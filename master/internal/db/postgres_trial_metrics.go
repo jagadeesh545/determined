@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -254,14 +255,16 @@ func customMetricGroupToPartitionType(mGroup *string) MetricPartitionType {
 	if mGroup == nil {
 		return GenericMetric
 	}
-	switch model.MetricGroup(*mGroup) {
+	group := model.MetricGroup(*mGroup)
+	switch group {
 	case model.TrainingMetricGroup:
 		return TrainingMetric
 	case model.ValidationMetricGroup:
 		return ValidationMetric
-	case model.ProfilingMetricGroup:
-		return ProfilingMetric
 	default:
+		if slices.Contains(model.ProfilingMetricGroups, group) {
+			return ProfilingMetric
+		}
 		return GenericMetric
 	}
 }
