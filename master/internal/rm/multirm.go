@@ -76,7 +76,7 @@ func SetDefaultRouter(
 }
 
 // GetAllocationSummaries returns the allocation summaries for all resource pools across all resource managers.
-func GetAllocationSummaries() (
+func (m *MultiRMRouter) GetAllocationSummaries() (
 	map[model.AllocationID]sproto.AllocationSummary,
 	error,
 ) {
@@ -112,8 +112,8 @@ func GetAllocationSummaries() (
 }
 
 // Allocate routes an AllocateRequest to the specified RM.
-func Allocate(req sproto.AllocateRequest) (*sproto.ResourcesSubscription, error) {
-	rmForRp, ok := DefaultRMRouter.rms[req.ResourceManager]
+func (m *MultiRMRouter) Allocate(req sproto.AllocateRequest) (*sproto.ResourcesSubscription, error) {
+	rmForRp, ok := m.rms[req.ResourceManager]
 	if !ok {
 		return nil, ErrRPNotDefined(req.ResourceManager, req.ResourcePool)
 	}
@@ -148,7 +148,7 @@ func ValidateResources(rm, rp string, slots int, command bool) error {
 func DeleteJob(rm string, jobID model.JobID) (sproto.DeleteJobResponse, error) {
 	rmForRp, ok := DefaultRMRouter.rms[rm]
 	if !ok {
-		DefaultRMRouter.syslog.WithError(ErrRPNotDefined(rm, ""))
+		return sproto.EmptyDeleteJobResponse(), ErrRPNotDefined(rm, "")
 	}
 	return rmForRp.DeleteJob(jobID)
 }
@@ -157,7 +157,7 @@ func DeleteJob(rm string, jobID model.JobID) (sproto.DeleteJobResponse, error) {
 func NotifyContainerRunning(rm string, req sproto.NotifyContainerRunning) error {
 	rmForRp, ok := DefaultRMRouter.rms[rm]
 	if !ok {
-		DefaultRMRouter.syslog.WithError(ErrRPNotDefined(rm, ""))
+		return ErrRPNotDefined(rm, "")
 	}
 	return rmForRp.NotifyContainerRunning(req)
 }
@@ -202,38 +202,41 @@ func ExternalPreemptionPending(rm string, allocationID model.AllocationID) error
 func IsReattachableOnlyAfterStarted(rm string) bool {
 	rmForRp, ok := DefaultRMRouter.rms[rm]
 	if !ok {
-		return false // TODO (multirm): how else to log this?
+		return false // TODO (multirm): wht should this actually return?
 	}
 	return rmForRp.IsReattachableOnlyAfterStarted()
 }
 
 // GetResourcePools returns all resource pools across all resource managers.
 func (r *MultiRMRouter) GetResourcePools() (*apiv1.GetResourcePoolsResponse, error) {
-	res := make(chan []*resourcepoolv1.ResourcePool)
+	DefaultRMRouter.mu.Lock()
+	defer DefaultRMRouter.mu.Unlock()
 
-	// TODO (multirm): switch this to errgroup?
-	var wg sync.WaitGroup
-	wg.Add(len(r.rms))
+	var eg errgroup.Group
+	var mu sync.Mutex
+	var res []*resourcepoolv1.ResourcePool
 
-	for _, rm := range r.rms {
-		go func(m ResourceManager) {
-			defer wg.Done()
-			res1, err := m.GetResourcePools()
+	for _, rm := range DefaultRMRouter.rms {
+		r := rm
+		eg.Go(func() error {
+			res1, err := r.GetResourcePools()
 			if err != nil {
-				r.syslog.WithError(err)
+				return err
 			}
-			res <- res1.ResourcePools
-		}(rm)
-	}
-	wg.Wait()
 
-	close(res)
-
-	var totalRes []*resourcepoolv1.ResourcePool
-	for x := range res {
-		totalRes = append(totalRes, x...)
+			// TODO (multirm): I know this looks ugly, but I couldn't
+			// figure out how to *not* panic if I send this to a channel.
+			mu.Lock()
+			res = append(res, res1.ResourcePools...)
+			mu.Unlock()
+			return nil
+		})
 	}
-	return &apiv1.GetResourcePoolsResponse{ResourcePools: totalRes}, nil
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+
+	return &apiv1.GetResourcePoolsResponse{ResourcePools: res}, nil
 }
 
 // GetDefaultComputeResourcePool routes a GetDefaultComputeResourcePool to the specified resource manager.
@@ -365,7 +368,7 @@ func GetAgents() (*apiv1.GetAgentsResponse, error) {
 func GetAgent(req *apiv1.GetAgentRequest) (*apiv1.GetAgentResponse, error) {
 	rmForRp, ok := DefaultRMRouter.rms[req.ResourceManager]
 	if !ok {
-		DefaultRMRouter.syslog.WithError(ErrRPNotDefined(req.ResourceManager, req.AgentId))
+		return nil, ErrRPNotDefined(req.ResourceManager, req.AgentId)
 	}
 	return rmForRp.GetAgent(req)
 }
@@ -374,7 +377,7 @@ func GetAgent(req *apiv1.GetAgentRequest) (*apiv1.GetAgentResponse, error) {
 func EnableAgent(req *apiv1.EnableAgentRequest) (*apiv1.EnableAgentResponse, error) {
 	rmForRp, ok := DefaultRMRouter.rms[req.ResourceManager]
 	if !ok {
-		DefaultRMRouter.syslog.WithError(ErrRPNotDefined(req.ResourceManager, req.AgentId))
+		return nil, ErrRPNotDefined(req.ResourceManager, req.AgentId)
 	}
 	return rmForRp.EnableAgent(req)
 }
@@ -383,7 +386,7 @@ func EnableAgent(req *apiv1.EnableAgentRequest) (*apiv1.EnableAgentResponse, err
 func DisableAgent(req *apiv1.DisableAgentRequest) (*apiv1.DisableAgentResponse, error) {
 	rmForRp, ok := DefaultRMRouter.rms[req.ResourceManager]
 	if !ok {
-		DefaultRMRouter.syslog.WithError(ErrRPNotDefined(req.ResourceManager, req.AgentId))
+		return nil, ErrRPNotDefined(req.ResourceManager, req.AgentId)
 	}
 	return rmForRp.DisableAgent(req)
 }
@@ -392,7 +395,7 @@ func DisableAgent(req *apiv1.DisableAgentRequest) (*apiv1.DisableAgentResponse, 
 func GetSlots(req *apiv1.GetSlotsRequest) (*apiv1.GetSlotsResponse, error) {
 	rmForRp, ok := DefaultRMRouter.rms[req.ResourceManager]
 	if !ok {
-		DefaultRMRouter.syslog.WithError(ErrRPNotDefined(req.ResourceManager, req.AgentId))
+		return nil, ErrRPNotDefined(req.ResourceManager, req.AgentId)
 	}
 	return rmForRp.GetSlots(req)
 }
@@ -401,7 +404,7 @@ func GetSlots(req *apiv1.GetSlotsRequest) (*apiv1.GetSlotsResponse, error) {
 func GetSlot(req *apiv1.GetSlotRequest) (*apiv1.GetSlotResponse, error) {
 	rmForRp, ok := DefaultRMRouter.rms[req.ResourceManager]
 	if !ok {
-		DefaultRMRouter.syslog.WithError(ErrRPNotDefined(req.ResourceManager, req.AgentId))
+		return nil, ErrRPNotDefined(req.ResourceManager, req.AgentId)
 	}
 	return rmForRp.GetSlot(req)
 }
@@ -410,7 +413,7 @@ func GetSlot(req *apiv1.GetSlotRequest) (*apiv1.GetSlotResponse, error) {
 func EnableSlot(req *apiv1.EnableSlotRequest) (*apiv1.EnableSlotResponse, error) {
 	rmForRp, ok := DefaultRMRouter.rms[req.ResourceManager]
 	if !ok {
-		DefaultRMRouter.syslog.WithError(ErrRPNotDefined(req.ResourceManager, req.AgentId))
+		return nil, ErrRPNotDefined(req.ResourceManager, req.AgentId)
 	}
 	return rmForRp.EnableSlot(req)
 }
@@ -419,7 +422,7 @@ func EnableSlot(req *apiv1.EnableSlotRequest) (*apiv1.EnableSlotResponse, error)
 func DisableSlot(req *apiv1.DisableSlotRequest) (*apiv1.DisableSlotResponse, error) {
 	rmForRp, ok := DefaultRMRouter.rms[req.ResourceManager]
 	if !ok {
-		DefaultRMRouter.syslog.WithError(ErrRPNotDefined(req.ResourceManager, req.AgentId))
+		return nil, ErrRPNotDefined(req.ResourceManager, req.AgentId)
 	}
 	return rmForRp.DisableSlot(req)
 }
