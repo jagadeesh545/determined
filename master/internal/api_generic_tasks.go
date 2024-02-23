@@ -103,7 +103,7 @@ func (a *apiServer) getGenericTaskLaunchParameters(
 		return nil, nil, nil, fmt.Errorf("resource slots must be >= 0")
 	}
 	isSingleNode := resources.IsSingleNode != nil && *resources.IsSingleNode
-	poolName, launchWarnings, err := a.m.ResolveResources(
+	managerName, poolName, launchWarnings, err := a.m.ResolveResources(
 		resources.ResourceManager,
 		resources.ResourcePool,
 		resources.Slots,
@@ -113,7 +113,7 @@ func (a *apiServer) getGenericTaskLaunchParameters(
 		return nil, nil, nil, err
 	}
 	// Get the base TaskSpec.
-	taskSpec, err := a.m.fillTaskSpec(poolName, agentUserGroup, userModel)
+	taskSpec, err := a.m.fillTaskSpec(managerName, poolName, agentUserGroup, userModel)
 	if err != nil {
 		return nil, nil, nil, err
 	}

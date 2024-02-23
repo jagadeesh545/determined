@@ -56,7 +56,7 @@ func TestRunCheckpointGCTask(t *testing.T) {
 			args: args{
 				rm: func() *mocks.ResourceManager {
 					var rm mocks.ResourceManager
-					rm.On("ResolveResourcePool", mock.Anything, mock.Anything, mock.Anything).
+					rm.On("ResolveResourcePool", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 						Return("default", nil)
 
 					rm.On("TaskContainerDefaults", mock.Anything, mock.Anything).
@@ -115,7 +115,7 @@ func TestRunCheckpointGCTask(t *testing.T) {
 				rm: func() *mocks.ResourceManager {
 					var rm mocks.ResourceManager
 
-					rm.On("ResolveResourcePool", mock.Anything, mock.Anything, mock.Anything).
+					rm.On("ResolveResourcePool", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 						Return("", errors.New("rm is down or something"))
 
 					return &rm
@@ -136,7 +136,7 @@ func TestRunCheckpointGCTask(t *testing.T) {
 
 			jobID := db.RequireMockJob(t, pgDB, &user.ID)
 
-			if err := runCheckpointGCTask(
+			if err := runCheckpointGCTask("",
 				tt.args.rm,
 				pgDB,
 				model.NewTaskID(),

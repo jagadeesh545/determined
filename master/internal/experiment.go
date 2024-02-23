@@ -107,23 +107,32 @@ func newExperiment(
 		return nil, nil, err
 	}
 	workspaceID := resolveWorkspaceID(workspaceModel)
-	poolName, err := m.rm.ResolveResourcePool(
-		resources.ResourcePool(), workspaceID, resources.SlotsPerTrial(),
-	)
+	managerName, poolName, err := m.rm.ResolveResourcePool(sproto.ResolveResourcesRequest{
+		ResourceManager: resources.ResourcePool(),
+		ResourcePool:    resources.ResourcePool(),
+		Workspace:       workspaceID,
+		Slots:           resources.SlotsPerTrial(),
+	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot create an experiment: %w", err)
 	}
 
 	var launchWarnings []command.LaunchWarning
 	if expModel.ID == 0 {
-		err := m.rm.ValidateResources(resources.ResourceManager(), poolName, resources.SlotsPerTrial(), false)
+		err := m.rm.ValidateResources(sproto.ValidateResources{
+			ResourceManager: managerName,
+			ResourcePool:    poolName,
+			Slots:           resources.SlotsPerTrial(),
+			Command:         false,
+		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("validating resources: %v", err)
 		}
 		launchWarnings, err = m.rm.ValidateResourcePoolAvailability(
 			&sproto.ValidateResourcePoolAvailabilityRequest{
-				Name:  poolName,
-				Slots: resources.SlotsPerTrial(),
+				Name:            poolName,
+				Slots:           resources.SlotsPerTrial(),
+				ResourceManager: managerName,
 			},
 		)
 		if err != nil {
@@ -133,7 +142,7 @@ func newExperiment(
 			return nil, nil, errors.New("slots requested exceeds cluster capacity")
 		}
 	}
-	// TODO (multirm) SetResourceManager, once master.ResolveResourcePool() has the right signature.
+	resources.SetResourceManager(managerName)
 	resources.SetResourcePool(poolName)
 
 	activeConfig.SetResources(resources)
@@ -260,9 +269,10 @@ func (e *internalExperiment) start() error {
 	}
 
 	e.rm.SetGroupMaxSlots(sproto.SetGroupMaxSlots{
-		MaxSlots:     e.activeConfig.Resources().MaxSlots(),
-		ResourcePool: e.activeConfig.Resources().ResourcePool(),
-		JobID:        e.JobID,
+		MaxSlots:        e.activeConfig.Resources().MaxSlots(),
+		ResourceManager: e.activeConfig.Resources().ResourceManager(),
+		ResourcePool:    e.activeConfig.Resources().ResourcePool(),
+		JobID:           e.JobID,
 	})
 	if err := e.setWeight(e.activeConfig.Resources().Weight()); err != nil {
 		e.updateState(model.StateWithReason{
@@ -293,9 +303,10 @@ func (e *internalExperiment) start() error {
 
 		if j.QPos.GreaterThan(decimal.Zero) {
 			e.rm.RecoverJobPosition(sproto.RecoverJobPosition{
-				JobID:        e.JobID,
-				JobPosition:  j.QPos,
-				ResourcePool: e.activeConfig.Resources().ResourcePool(),
+				JobID:           e.JobID,
+				JobPosition:     j.QPos,
+				ResourceManager: e.activeConfig.Resources().ResourceManager(),
+				ResourcePool:    e.activeConfig.Resources().ResourcePool(),
 			})
 		}
 
@@ -413,6 +424,7 @@ func (e *internalExperiment) SetGroupMaxSlots(msg sproto.SetGroupMaxSlots) {
 	e.activeConfig.SetResources(resources)
 	msg.JobID = e.JobID
 	msg.ResourcePool = e.activeConfig.Resources().ResourcePool()
+	msg.ResourceManager = e.activeConfig.Resources().ResourceManager()
 	e.rm.SetGroupMaxSlots(msg)
 }
 
@@ -488,7 +500,7 @@ func (e *internalExperiment) stop() error {
 	if len(checkpoints) > 0 {
 		go func() {
 			if err := runCheckpointGCForCheckpoints(
-				e.rm, e.db, e.JobID, e.StartTime, taskSpec,
+				e.activeConfig.Resources().ResourceManager(), e.rm, e.db, e.JobID, e.StartTime, taskSpec,
 				e.Experiment.ID, e.activeConfig.AsLegacy(), checkpoints,
 				[]string{fullDeleteGlob},
 				false, taskSpec.AgentUserGroup, taskSpec.Owner, e.logCtx,
@@ -1054,9 +1066,10 @@ func (e *internalExperiment) setPriority(priority *int, forward bool) (err error
 
 	if forward {
 		switch err := e.rm.SetGroupPriority(sproto.SetGroupPriority{
-			Priority:     *priority,
-			ResourcePool: e.activeConfig.Resources().ResourcePool(),
-			JobID:        e.JobID,
+			Priority:        *priority,
+			ResourceManager: e.activeConfig.Resources().ResourceManager(),
+			ResourcePool:    e.activeConfig.Resources().ResourcePool(),
+			JobID:           e.JobID,
 		}).(type) {
 		case nil:
 		case rmerrors.UnsupportedError:
@@ -1081,9 +1094,10 @@ func (e *internalExperiment) setWeight(weight float64) error {
 	}
 
 	switch err := e.rm.SetGroupWeight(sproto.SetGroupWeight{
-		Weight:       weight,
-		ResourcePool: e.activeConfig.Resources().ResourcePool(),
-		JobID:        e.JobID,
+		Weight:          weight,
+		ResourceManager: e.activeConfig.Resources().ResourceManager(),
+		ResourcePool:    e.activeConfig.Resources().ResourcePool(),
+		JobID:           e.JobID,
 	}).(type) {
 	case nil:
 	case rmerrors.UnsupportedError:
@@ -1096,7 +1110,7 @@ func (e *internalExperiment) setWeight(weight float64) error {
 	return nil
 }
 
-func (e *internalExperiment) setRP(resourcePool string) error {
+func (e *internalExperiment) setRP(resourceManager string, resourcePool string) error {
 	resources := e.activeConfig.Resources()
 	oldRP := resources.ResourcePool()
 	workspaceModel, err := workspace.WorkspaceByProjectID(context.TODO(), e.ProjectID)
@@ -1104,9 +1118,12 @@ func (e *internalExperiment) setRP(resourcePool string) error {
 		return err
 	}
 	workspaceID := resolveWorkspaceID(workspaceModel)
-	rp, err := e.rm.ResolveResourcePool(
-		resourcePool, workspaceID, e.activeConfig.Resources().SlotsPerTrial(),
-	)
+	rm, rp, err := e.rm.ResolveResourcePool(sproto.ResolveResourcesRequest{
+		ResourceManager: resourceManager,
+		ResourcePool:    resourcePool,
+		Workspace:       workspaceID,
+		Slots:           resources.SlotsPerTrial(),
+	})
 	switch {
 	case err != nil:
 		return fmt.Errorf("invalid resource pool name %s", resourcePool)
@@ -1114,6 +1131,7 @@ func (e *internalExperiment) setRP(resourcePool string) error {
 		return fmt.Errorf("resource pool is unchanged (%s == %s)", oldRP, rp)
 	}
 
+	resources.SetResourceManager(rm)
 	resources.SetResourcePool(rp)
 	e.activeConfig.SetResources(resources)
 

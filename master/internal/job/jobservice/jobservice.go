@@ -24,10 +24,8 @@ type Job interface {
 	ToV1Job() (*jobv1.Job, error)
 	SetJobPriority(priority int) error
 	SetWeight(weight float64) error
-	SetResourcePool(resourcePool string) error
-	ResourcePool() string
-	SetResourceManager(resourceManager string) error
-	ResourceManager() string
+	SetResourcePool(rm string, rp string) error
+	ResourcePool() (rm, rp string)
 }
 
 // Service manages the job service.
@@ -102,7 +100,7 @@ func (s *Service) GetJobs(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	jobQ, err := s.rm.GetJobQ(resourcePool)
+	jobQ, err := s.rm.GetJobQ(resourceManager, resourcePool)
 	if err != nil {
 		s.syslog.WithError(err).Error("getting job queue info from RM")
 		return nil, err
@@ -116,7 +114,7 @@ func (s *Service) GetJobs(
 	// If the GetExternalJobs call is supported, RM returns a list of external jobs or
 	// an error if there is any problem. Otherwise, RM returns rmerrors.ErrNotSupported
 	// error. In this case, continue without the External jobs.
-	externalJobs, err := s.rm.GetExternalJobs(resourcePool)
+	externalJobs, err := s.rm.GetExternalJobs(resourceManager, resourcePool)
 	if err != nil {
 		// If the error is not 'ErrNotSupported' error, propagate the error upwards.
 		if err != rmerrors.ErrNotSupported {
@@ -163,11 +161,12 @@ func (s *Service) GetJobs(
 }
 
 // GetJobSummary returns a summary of the job given an id and resource pool/resource manager.
-func (s *Service) GetJobSummary(id model.JobID, resourcePool string) (*jobv1.JobSummary, error) {
+func (s *Service) GetJobSummary(id model.JobID, resourceManager string, resourcePool string,
+) (*jobv1.JobSummary, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	jobQ, err := s.rm.GetJobQ(resourcePool)
+	jobQ, err := s.rm.GetJobQ(resourceManager, resourcePool)
 	if err != nil {
 		s.syslog.WithError(err).Error("getting job queue info from RM")
 		return nil, err
@@ -207,20 +206,24 @@ func (s *Service) applyUpdate(update *jobv1.QueueControl) error {
 		if action.ResourcePool == "" {
 			s.syslog.Error("resource pool must be set")
 		}
-		return j.SetResourcePool(action.ResourcePool)
+		return j.SetResourcePool("", action.ResourcePool) // TODO (multirm) -- action.ResourceManager
 	case *jobv1.QueueControl_AheadOf:
+		rmName, rpName := j.ResourcePool()
 		return s.rm.MoveJob(sproto.MoveJob{
-			ID:           jobID,
-			Anchor:       model.JobID(action.AheadOf),
-			Ahead:        true,
-			ResourcePool: j.ResourcePool(),
+			ID:              jobID,
+			Anchor:          model.JobID(action.AheadOf),
+			Ahead:           true,
+			ResourcePool:    rpName,
+			ResourceManager: rmName,
 		})
 	case *jobv1.QueueControl_BehindOf:
+		rmName, rpName := j.ResourcePool()
 		return s.rm.MoveJob(sproto.MoveJob{
-			ID:           jobID,
-			Anchor:       model.JobID(action.BehindOf),
-			Ahead:        false,
-			ResourcePool: j.ResourcePool(),
+			ID:              jobID,
+			Anchor:          model.JobID(action.BehindOf),
+			Ahead:           false,
+			ResourcePool:    rpName,
+			ResourceManager: rmName,
 		})
 	default:
 		return fmt.Errorf("unexpected action: %v", action)

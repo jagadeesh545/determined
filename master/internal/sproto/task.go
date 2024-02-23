@@ -73,9 +73,10 @@ type (
 
 	// ResourcesReleased notifies resource providers to return resources from a task.
 	ResourcesReleased struct {
-		AllocationID model.AllocationID
-		ResourcesID  *ResourcesID
-		ResourcePool string
+		AllocationID    model.AllocationID
+		ResourcesID     *ResourcesID
+		ResourcePool    string
+		ResourceManager string
 	}
 	// GetAllocationSummaries returns the summaries of all the tasks in the cluster.
 	GetAllocationSummaries struct{}
@@ -107,6 +108,14 @@ type (
 		// - false: impossible to fulfill
 		// - true: ok or unknown
 		Fulfillable bool
+	}
+
+	// ValidateResources ensures enough resources are available in the resource pool.
+	ValidateResources struct {
+		ResourceManager string
+		ResourcePool    string
+		Slots           int
+		Command         bool
 	}
 )
 
@@ -250,10 +259,11 @@ type (
 	// NotifyContainerRunning notifies the launcher (dispatcher) resource
 	// manager that the container is running.
 	NotifyContainerRunning struct {
-		AllocationID model.AllocationID
-		Rank         int32
-		NumPeers     int32
-		NodeName     string
+		AllocationID    model.AllocationID
+		Rank            int32
+		NumPeers        int32
+		NodeName        string
+		ResourceManager string
 	}
 
 	// ReleaseResources notifies the task actor to release resources.
@@ -264,6 +274,7 @@ type (
 		ForcePreemption bool
 		ForceKill       bool
 	}
+
 	// ResourcesRuntimeInfo is all the information provided at runtime to make a task spec.
 	ResourcesRuntimeInfo struct {
 		Token        string

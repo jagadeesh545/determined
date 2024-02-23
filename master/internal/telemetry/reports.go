@@ -56,8 +56,6 @@ func reportMasterTickDelay() time.Duration {
 
 // reportMasterTick reports the master snapshot on a periodic tick.
 func reportMasterTick(db db.DB, rm telemetryRPFetcher) {
-	// TODO (multirm): in the next iteration we can get rid of this import cycle
-	// DefaultRMRouter.GetResourcePools()
 	resp, err := rm.GetResourcePools()
 	if err != nil {
 		// TODO(Brad): Make this routine more accepting of failures.

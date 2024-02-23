@@ -352,6 +352,7 @@ type Experiment struct {
 	Unmanaged            bool       `db:"unmanaged"`
 	ExternalExperimentID *string    `db:"external_experiment_id"`
 	Progress             *float64
+	ResourceManager      string
 }
 
 // ExperimentFromProto converts a experimentv1.Experiment to a model.Experiment.
@@ -389,14 +390,15 @@ func ExperimentFromProto(e *experimentv1.Experiment) (*Experiment, error) {
 		Config:         config,
 		OriginalConfig: e.OriginalConfig,
 		// ModelDefinitionBytes:
-		StartTime: e.StartTime.AsTime(),
-		EndTime:   endTime,
-		ParentID:  parentID,
-		Archived:  e.Archived,
-		OwnerID:   uid,
-		Username:  e.Username,
-		ProjectID: int(e.ProjectId),
-		Unmanaged: e.Unmanaged,
+		StartTime:       e.StartTime.AsTime(),
+		EndTime:         endTime,
+		ParentID:        parentID,
+		Archived:        e.Archived,
+		OwnerID:         uid,
+		Username:        e.Username,
+		ProjectID:       int(e.ProjectId),
+		ResourceManager: e.GetResourceManager(),
+		Unmanaged:       e.Unmanaged,
 	}, nil
 }
 
@@ -411,14 +413,15 @@ func NewExperiment(
 	unmanaged bool,
 ) (*Experiment, error) {
 	return &Experiment{
-		State:          PausedState,
-		JobID:          NewJobID(),
-		Config:         config.AsLegacy(),
-		OriginalConfig: originalConfig,
-		StartTime:      time.Now().UTC(),
-		ParentID:       parentID,
-		Archived:       archived,
-		ProjectID:      projectID,
+		State:           PausedState,
+		JobID:           NewJobID(),
+		Config:          config.AsLegacy(),
+		OriginalConfig:  originalConfig,
+		StartTime:       time.Now().UTC(),
+		ParentID:        parentID,
+		Archived:        archived,
+		ProjectID:       projectID,
+		ResourceManager: config.Resources().ResourceManager(),
 	}, nil
 }
 

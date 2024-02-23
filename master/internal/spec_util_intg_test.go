@@ -21,7 +21,7 @@ import (
 
 func getMockResourceManager(poolName string) *mocks.ResourceManager {
 	rm := &mocks.ResourceManager{}
-	rm.On("ResolveResourcePool", "/", 0, 1).Return(poolName, nil)
+	rm.On("ResolveResourcePool", "", "/", 0, 1).Return(poolName, nil)
 	rm.On("ValidateResourcePoolAvailability", &sproto.ValidateResourcePoolAvailabilityRequest{
 		Name:  poolName,
 		Slots: 1,
@@ -51,7 +51,7 @@ func TestResolveResources(t *testing.T) {
 				rm:     getMockResourceManager(testVars.expectedPoolName),
 				config: config.DefaultConfig(),
 			}
-			poolName, _, err := m.ResolveResources("", testVars.resourcePool, testVars.slots, testVars.workspaceID, true)
+			_, poolName, _, err := m.ResolveResources("", testVars.resourcePool, testVars.slots, testVars.workspaceID, true)
 
 			require.NoError(t, err, "Error in ResolveResources()")
 			require.Equal(t, testVars.expectedPoolName, poolName)
@@ -92,7 +92,7 @@ func TestFillTaskSpec(t *testing.T) {
 				testVars.poolName,
 				m.config.TaskContainerDefaults,
 			).Return(model.TaskContainerDefaultsConfig{WorkDir: &testVars.workDir}, nil)
-			taskSpec, err := m.fillTaskSpec(testVars.poolName, testVars.agentUserGroup, testVars.userModel)
+			taskSpec, err := m.fillTaskSpec("", testVars.poolName, testVars.agentUserGroup, testVars.userModel)
 			require.NoError(t, err, "Error in fillTaskSpec()")
 			require.Equal(t, expectedTaskSpec, taskSpec)
 		})

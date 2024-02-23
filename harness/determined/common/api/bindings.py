@@ -3484,6 +3484,7 @@ class v1Experiment(Printable):
     parentArchived: "typing.Optional[bool]" = None
     progress: "typing.Optional[float]" = None
     projectName: "typing.Optional[str]" = None
+    resourceManager: "typing.Optional[str]" = None
     resourcePool: "typing.Optional[str]" = None
     searcherMetric: "typing.Optional[str]" = None
     trialIds: "typing.Optional[typing.Sequence[int]]" = None
@@ -3525,6 +3526,7 @@ class v1Experiment(Printable):
         parentArchived: "typing.Union[bool, None, Unset]" = _unset,
         progress: "typing.Union[float, None, Unset]" = _unset,
         projectName: "typing.Union[str, None, Unset]" = _unset,
+        resourceManager: "typing.Union[str, None, Unset]" = _unset,
         resourcePool: "typing.Union[str, None, Unset]" = _unset,
         searcherMetric: "typing.Union[str, None, Unset]" = _unset,
         trialIds: "typing.Union[typing.Sequence[int], None, Unset]" = _unset,
@@ -3580,6 +3582,8 @@ class v1Experiment(Printable):
             self.progress = progress
         if not isinstance(projectName, Unset):
             self.projectName = projectName
+        if not isinstance(resourceManager, Unset):
+            self.resourceManager = resourceManager
         if not isinstance(resourcePool, Unset):
             self.resourcePool = resourcePool
         if not isinstance(searcherMetric, Unset):
@@ -3646,6 +3650,8 @@ class v1Experiment(Printable):
             kwargs["progress"] = float(obj["progress"]) if obj["progress"] is not None else None
         if "projectName" in obj:
             kwargs["projectName"] = obj["projectName"]
+        if "resourceManager" in obj:
+            kwargs["resourceManager"] = obj["resourceManager"]
         if "resourcePool" in obj:
             kwargs["resourcePool"] = obj["resourcePool"]
         if "searcherMetric" in obj:
@@ -3712,6 +3718,8 @@ class v1Experiment(Printable):
             out["progress"] = None if self.progress is None else dump_float(self.progress)
         if not omit_unset or "projectName" in vars(self):
             out["projectName"] = self.projectName
+        if not omit_unset or "resourceManager" in vars(self):
+            out["resourceManager"] = self.resourceManager
         if not omit_unset or "resourcePool" in vars(self):
             out["resourcePool"] = self.resourcePool
         if not omit_unset or "searcherMetric" in vars(self):
@@ -6726,6 +6734,7 @@ class v1Job(Printable):
     """
     priority: "typing.Optional[int]" = None
     progress: "typing.Optional[float]" = None
+    resourceManager: "typing.Optional[str]" = None
     summary: "typing.Optional[v1JobSummary]" = None
     userId: "typing.Optional[int]" = None
     weight: "typing.Optional[float]" = None
@@ -6746,6 +6755,7 @@ class v1Job(Printable):
         workspaceId: int,
         priority: "typing.Union[int, None, Unset]" = _unset,
         progress: "typing.Union[float, None, Unset]" = _unset,
+        resourceManager: "typing.Union[str, None, Unset]" = _unset,
         summary: "typing.Union[v1JobSummary, None, Unset]" = _unset,
         userId: "typing.Union[int, None, Unset]" = _unset,
         weight: "typing.Union[float, None, Unset]" = _unset,
@@ -6765,6 +6775,8 @@ class v1Job(Printable):
             self.priority = priority
         if not isinstance(progress, Unset):
             self.progress = progress
+        if not isinstance(resourceManager, Unset):
+            self.resourceManager = resourceManager
         if not isinstance(summary, Unset):
             self.summary = summary
         if not isinstance(userId, Unset):
@@ -6791,6 +6803,8 @@ class v1Job(Printable):
             kwargs["priority"] = obj["priority"]
         if "progress" in obj:
             kwargs["progress"] = float(obj["progress"]) if obj["progress"] is not None else None
+        if "resourceManager" in obj:
+            kwargs["resourceManager"] = obj["resourceManager"]
         if "summary" in obj:
             kwargs["summary"] = v1JobSummary.from_json(obj["summary"]) if obj["summary"] is not None else None
         if "userId" in obj:
@@ -6817,6 +6831,8 @@ class v1Job(Printable):
             out["priority"] = self.priority
         if not omit_unset or "progress" in vars(self):
             out["progress"] = None if self.progress is None else dump_float(self.progress)
+        if not omit_unset or "resourceManager" in vars(self):
+            out["resourceManager"] = self.resourceManager
         if not omit_unset or "summary" in vars(self):
             out["summary"] = None if self.summary is None else self.summary.to_json(omit_unset)
         if not omit_unset or "userId" in vars(self):
@@ -7482,6 +7498,7 @@ class v1LimitedJob(Printable):
     """LimitedJob is a Job with omitted fields."""
     priority: "typing.Optional[int]" = None
     progress: "typing.Optional[float]" = None
+    resourceManager: "typing.Optional[str]" = None
     summary: "typing.Optional[v1JobSummary]" = None
     weight: "typing.Optional[float]" = None
 
@@ -7497,6 +7514,7 @@ class v1LimitedJob(Printable):
         workspaceId: int,
         priority: "typing.Union[int, None, Unset]" = _unset,
         progress: "typing.Union[float, None, Unset]" = _unset,
+        resourceManager: "typing.Union[str, None, Unset]" = _unset,
         summary: "typing.Union[v1JobSummary, None, Unset]" = _unset,
         weight: "typing.Union[float, None, Unset]" = _unset,
     ):
@@ -7511,6 +7529,8 @@ class v1LimitedJob(Printable):
             self.priority = priority
         if not isinstance(progress, Unset):
             self.progress = progress
+        if not isinstance(resourceManager, Unset):
+            self.resourceManager = resourceManager
         if not isinstance(summary, Unset):
             self.summary = summary
         if not isinstance(weight, Unset):
@@ -7531,6 +7551,8 @@ class v1LimitedJob(Printable):
             kwargs["priority"] = obj["priority"]
         if "progress" in obj:
             kwargs["progress"] = float(obj["progress"]) if obj["progress"] is not None else None
+        if "resourceManager" in obj:
+            kwargs["resourceManager"] = obj["resourceManager"]
         if "summary" in obj:
             kwargs["summary"] = v1JobSummary.from_json(obj["summary"]) if obj["summary"] is not None else None
         if "weight" in obj:
@@ -7551,6 +7573,8 @@ class v1LimitedJob(Printable):
             out["priority"] = self.priority
         if not omit_unset or "progress" in vars(self):
             out["progress"] = None if self.progress is None else dump_float(self.progress)
+        if not omit_unset or "resourceManager" in vars(self):
+            out["resourceManager"] = self.resourceManager
         if not omit_unset or "summary" in vars(self):
             out["summary"] = None if self.summary is None else self.summary.to_json(omit_unset)
         if not omit_unset or "weight" in vars(self):
@@ -10926,6 +10950,7 @@ class v1QueueControl(Printable):
     aheadOf: "typing.Optional[str]" = None
     behindOf: "typing.Optional[str]" = None
     priority: "typing.Optional[int]" = None
+    resourceManager: "typing.Optional[str]" = None
     resourcePool: "typing.Optional[str]" = None
     weight: "typing.Optional[float]" = None
 
@@ -10936,6 +10961,7 @@ class v1QueueControl(Printable):
         aheadOf: "typing.Union[str, None, Unset]" = _unset,
         behindOf: "typing.Union[str, None, Unset]" = _unset,
         priority: "typing.Union[int, None, Unset]" = _unset,
+        resourceManager: "typing.Union[str, None, Unset]" = _unset,
         resourcePool: "typing.Union[str, None, Unset]" = _unset,
         weight: "typing.Union[float, None, Unset]" = _unset,
     ):
@@ -10946,6 +10972,8 @@ class v1QueueControl(Printable):
             self.behindOf = behindOf
         if not isinstance(priority, Unset):
             self.priority = priority
+        if not isinstance(resourceManager, Unset):
+            self.resourceManager = resourceManager
         if not isinstance(resourcePool, Unset):
             self.resourcePool = resourcePool
         if not isinstance(weight, Unset):
@@ -10962,6 +10990,8 @@ class v1QueueControl(Printable):
             kwargs["behindOf"] = obj["behindOf"]
         if "priority" in obj:
             kwargs["priority"] = obj["priority"]
+        if "resourceManager" in obj:
+            kwargs["resourceManager"] = obj["resourceManager"]
         if "resourcePool" in obj:
             kwargs["resourcePool"] = obj["resourcePool"]
         if "weight" in obj:
@@ -10978,6 +11008,8 @@ class v1QueueControl(Printable):
             out["behindOf"] = self.behindOf
         if not omit_unset or "priority" in vars(self):
             out["priority"] = self.priority
+        if not omit_unset or "resourceManager" in vars(self):
+            out["resourceManager"] = self.resourceManager
         if not omit_unset or "resourcePool" in vars(self):
             out["resourcePool"] = self.resourcePool
         if not omit_unset or "weight" in vars(self):

@@ -12,35 +12,35 @@ import (
 type ResourceManager interface {
 	// Basic functionality
 	GetAllocationSummaries() (map[model.AllocationID]sproto.AllocationSummary, error)
-	Allocate(req sproto.AllocateRequest) (*sproto.ResourcesSubscription, error)
-	Release(req sproto.AllocateRequest, resourceID *sproto.ResourcesID)
-	ValidateResources(rm, rp string, slots int, command bool) error
-	DeleteJob(rm string, jobID model.JobID) (sproto.DeleteJobResponse, error)
+	Allocate(sproto.AllocateRequest) (*sproto.ResourcesSubscription, error)
+	Release(sproto.ResourcesReleased)
+	ValidateResources(sproto.ValidateResources) error
+	DeleteJob(rmName string, jobID model.JobID) (sproto.DeleteJobResponse, error)
 	NotifyContainerRunning(sproto.NotifyContainerRunning) error
 
 	// Scheduling related stuff
 	SetGroupMaxSlots(sproto.SetGroupMaxSlots)
 	SetGroupWeight(sproto.SetGroupWeight) error
 	SetGroupPriority(sproto.SetGroupPriority) error
-	ExternalPreemptionPending(model.AllocationID) error
-	IsReattachableOnlyAfterStarted() bool
+	ExternalPreemptionPending(rmName string, allocID model.AllocationID) error
+	IsReattachableOnlyAfterStarted(rmName string) bool
 
 	// Resource pool stuff
 	GetResourcePools() (*apiv1.GetResourcePoolsResponse, error)
 	GetDefaultComputeResourcePool() (sproto.GetDefaultComputeResourcePoolResponse, error)
 	GetDefaultAuxResourcePool() (sproto.GetDefaultAuxResourcePoolResponse, error)
-	ValidateResourcePool(string) error
-	ResolveResourcePool(name string, workspace, slots int) (string, error)
+	ValidateResourcePool(rmName string, rpName string) error
+	ResolveResourcePool(sproto.ResolveResourcesRequest) (string, string, error)
 	ValidateResourcePoolAvailability(v *sproto.ValidateResourcePoolAvailabilityRequest) ([]command.LaunchWarning, error)
-	TaskContainerDefaults(rp string, fallbackConfig model.TaskContainerDefaultsConfig) (
+	TaskContainerDefaults(rmName string, rpName string, fallbackConfig model.TaskContainerDefaultsConfig) (
 		model.TaskContainerDefaultsConfig, error)
 
 	// Job queue
-	GetJobQ(string) (map[model.JobID]*sproto.RMJobInfo, error)
+	GetJobQ(rmName string, rpName string) (map[model.JobID]*sproto.RMJobInfo, error)
 	GetJobQueueStatsRequest(*apiv1.GetJobQueueStatsRequest) (*apiv1.GetJobQueueStatsResponse, error)
 	MoveJob(sproto.MoveJob) error
 	RecoverJobPosition(sproto.RecoverJobPosition)
-	GetExternalJobs(rp string) ([]*jobv1.Job, error)
+	GetExternalJobs(rmName string, rpName string) ([]*jobv1.Job, error)
 
 	// Cluster Management APIs
 	GetAgents() (*apiv1.GetAgentsResponse, error)

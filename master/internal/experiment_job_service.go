@@ -73,33 +73,17 @@ func (e *internalExperiment) SetWeight(weight float64) error {
 }
 
 // SetResourcePool sets the experiment's resource pool.
-func (e *internalExperiment) SetResourcePool(resourcePool string) error {
+func (e *internalExperiment) SetResourcePool(resourceManager, resourcePool string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	return e.setRP(resourcePool)
+	return e.setRP(resourceManager, resourcePool)
 }
 
 // ResourcePool gets the experiment's resource pool.
-func (e *internalExperiment) ResourcePool() string {
+func (e *internalExperiment) ResourcePool() (string, string) {
 	e.mu.Lock()
 	defer e.mu.Lock()
 
-	return e.activeConfig.Resources().ResourcePool()
-}
-
-// SetResourceManager sets the experiment's resource manager.
-func (e *internalExperiment) SetResourceManager(resourceManager string) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	return e.setRP(resourceManager)
-}
-
-// ResourceManager gets the experiments's resource pool.
-func (e *internalExperiment) ResourceManager() string {
-	e.mu.Lock()
-	defer e.mu.Lock()
-
-	return e.activeConfig.Resources().ResourceManager()
+	return e.activeConfig.Resources().ResourceManager(), e.activeConfig.Resources().ResourcePool()
 }

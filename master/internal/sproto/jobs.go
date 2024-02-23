@@ -54,31 +54,35 @@ func DeleteJobResponseOf(input error) DeleteJobResponse {
 type (
 	// SetGroupWeight sets the weight of a group in the fair share scheduler.
 	SetGroupWeight struct {
-		Weight       float64
-		ResourcePool string
-		JobID        model.JobID
+		Weight          float64
+		ResourceManager string
+		ResourcePool    string
+		JobID           model.JobID
 	}
 	// SetGroupPriority sets the priority of the group in the priority scheduler.
 	SetGroupPriority struct {
-		Priority     int
-		ResourcePool string
-		JobID        model.JobID
+		Priority        int
+		ResourceManager string
+		ResourcePool    string
+		JobID           model.JobID
 	}
 	// MoveJob requests the job to be moved within a priority queue relative to another job.
 	MoveJob struct {
-		ID           model.JobID
-		Anchor       model.JobID
-		Ahead        bool
-		ResourcePool string
+		ID              model.JobID
+		Anchor          model.JobID
+		Ahead           bool
+		ResourceManager string
+		ResourcePool    string
 	}
 )
 
 // RecoverJobPosition gets sent from the experiment or command actor to the resource pool.
 // Notifies the resource pool of the position of the job.
 type RecoverJobPosition struct {
-	JobID        model.JobID
-	JobPosition  decimal.Decimal
-	ResourcePool string
+	JobID           model.JobID
+	JobPosition     decimal.Decimal
+	ResourceManager string
+	ResourcePool    string
 }
 
 // SchedulingState denotes the scheduling state of a job and in order of its progression value.

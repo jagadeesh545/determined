@@ -161,13 +161,13 @@ func (k *ResourceManager) Allocate(msg sproto.AllocateRequest) (*sproto.Resource
 }
 
 // DeleteJob implements rm.ResourceManager.
-func (ResourceManager) DeleteJob(model.JobID) (sproto.DeleteJobResponse, error) {
+func (ResourceManager) DeleteJob(string, model.JobID) (sproto.DeleteJobResponse, error) {
 	// For now, there is nothing to clean up in k8s.
 	return sproto.EmptyDeleteJobResponse(), nil
 }
 
 // ExternalPreemptionPending implements rm.ResourceManager.
-func (ResourceManager) ExternalPreemptionPending(model.AllocationID) error {
+func (ResourceManager) ExternalPreemptionPending(string, model.AllocationID) error {
 	return rmerrors.ErrNotSupported
 }
 
@@ -212,12 +212,12 @@ func (k *ResourceManager) GetDefaultComputeResourcePool() (sproto.GetDefaultComp
 }
 
 // GetExternalJobs implements rm.ResourceManager.
-func (ResourceManager) GetExternalJobs(string) ([]*jobv1.Job, error) {
+func (ResourceManager) GetExternalJobs(_, _ string) ([]*jobv1.Job, error) {
 	return nil, rmerrors.ErrNotSupported
 }
 
 // GetJobQ implements rm.ResourceManager.
-func (k *ResourceManager) GetJobQ(resourcePool string) (map[model.JobID]*sproto.RMJobInfo, error) {
+func (k *ResourceManager) GetJobQ(_, resourcePool string) (map[model.JobID]*sproto.RMJobInfo, error) {
 	if resourcePool == "" {
 		resourcePool = k.config.DefaultComputeResourcePool
 	}
@@ -308,18 +308,14 @@ func (k *ResourceManager) RecoverJobPosition(msg sproto.RecoverJobPosition) {
 }
 
 // Release implements rm.ResourceManager.
-func (k *ResourceManager) Release(req sproto.AllocateRequest, resourceID *sproto.ResourcesID) {
+func (k *ResourceManager) Release(req sproto.ResourcesReleased) {
 	rp, err := k.poolByName(req.ResourcePool)
 	if err != nil {
 		k.syslog.WithError(err).Warnf("release found no resource pool with name %s",
 			req.ResourcePool)
 		return
 	}
-	rp.ResourcesReleased(sproto.ResourcesReleased{
-		AllocationID: req.AllocationID,
-		ResourcesID:  resourceID,
-		ResourcePool: req.ResourcePool,
-	})
+	rp.ResourcesReleased(req)
 }
 
 // SetGroupMaxSlots implements rm.ResourceManager.
@@ -371,76 +367,74 @@ func (k ResourceManager) resourcePoolExists(
 }
 
 // ResolveResourcePool resolves the resource pool completely.
-func (k ResourceManager) ResolveResourcePool(
-	name string,
-	workspaceID int,
-	slots int,
-) (string, error) {
+func (k ResourceManager) ResolveResourcePool(req sproto.ResolveResourcesRequest) (
+	rmName string, poolName string, err error,
+) {
 	ctx := context.TODO()
-	defaultComputePool, defaultAuxPool, err := db.GetDefaultPoolsForWorkspace(ctx, workspaceID)
+	defaultComputePool, defaultAuxPool, err := db.GetDefaultPoolsForWorkspace(ctx, req.Workspace)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	// If the resource pool isn't set, fill in the default at creation time.
-	if name == "" && slots == 0 {
+	if req.ResourcePool == "" && req.Slots == 0 {
 		if defaultAuxPool == "" {
 			resp, err := k.GetDefaultAuxResourcePool()
 			if err != nil {
-				return "", fmt.Errorf("defaulting to aux pool: %w", err)
+				return "", "", fmt.Errorf("defaulting to aux pool: %w", err)
 			}
-			return resp.PoolName, nil
+			return "", resp.PoolName, nil
 		}
-		name = defaultAuxPool
+		req.ResourcePool = defaultAuxPool
 	}
 
-	if name == "" && slots >= 0 {
+	if req.ResourcePool == "" && req.Slots >= 0 {
 		if defaultComputePool == "" {
 			resp, err := k.GetDefaultComputeResourcePool()
 			if err != nil {
-				return "", fmt.Errorf("defaulting to compute pool: %w", err)
+				return "", "", fmt.Errorf("defaulting to compute pool: %w", err)
 			}
-			return resp.PoolName, nil
+			return "", resp.PoolName, nil
 		}
-		name = defaultComputePool
+		req.ResourcePool = defaultComputePool
 	}
 
 	resp, err := k.GetResourcePools()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	poolNames, _, err := db.ReadRPsAvailableToWorkspace(
-		ctx, int32(workspaceID), 0, -1, rmutils.ResourcePoolsToConfig(resp.ResourcePools))
+		ctx, int32(req.Workspace), 0, -1, rmutils.ResourcePoolsToConfig(resp.ResourcePools))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	found := false
 	for _, poolName := range poolNames {
-		if name == poolName {
+		if req.ResourcePool == poolName {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return "", fmt.Errorf(
+		return "", "", fmt.Errorf(
 			"resource pool %s does not exist or is not available to workspace ID %d",
-			name, workspaceID)
+			req.ResourcePool, req.Workspace)
 	}
 
-	if err := k.ValidateResourcePool(name); err != nil {
-		return "", fmt.Errorf("validating pool: %w", err)
+	if err := k.ValidateResourcePool("", req.ResourcePool); err != nil {
+		return "", "", fmt.Errorf("validating pool: %w", err)
 	}
-	return name, nil
+	return "", req.ResourcePool, nil
 }
 
 // ValidateResources ensures enough resources are available in the resource pool.
 // This is a no-op for k8s.
-func (k ResourceManager) ValidateResources(rmName, rpName string, slots int, command bool) error {
+func (k ResourceManager) ValidateResources(sproto.ValidateResources) error {
 	return nil
 }
 
 // ValidateResourcePool validates that the named resource pool exists.
-func (k ResourceManager) ValidateResourcePool(name string) error {
+func (k ResourceManager) ValidateResourcePool(_, name string) error {
 	return k.resourcePoolExists(name)
 }
 
@@ -469,12 +463,12 @@ func (k ResourceManager) NotifyContainerRunning(
 }
 
 // IsReattachableOnlyAfterStarted always returns false for the k8s resource manager.
-func (k ResourceManager) IsReattachableOnlyAfterStarted() bool {
+func (k ResourceManager) IsReattachableOnlyAfterStarted(string) bool {
 	return false
 }
 
 // TaskContainerDefaults returns TaskContainerDefaults for the specified pool.
-func (k ResourceManager) TaskContainerDefaults(pool string, fallbackConfig model.TaskContainerDefaultsConfig,
+func (k ResourceManager) TaskContainerDefaults(_, pool string, fallbackConfig model.TaskContainerDefaultsConfig,
 ) (result model.TaskContainerDefaultsConfig, err error) {
 	return k.getTaskContainerDefaults(
 		taskContainerDefaults{fallbackDefault: fallbackConfig, resourcePool: pool},

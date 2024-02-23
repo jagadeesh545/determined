@@ -55,7 +55,7 @@ func MockRM() *mocks.ResourceManager {
 	mockRM.On("DeleteJob", mock.Anything).Return(func(model.JobID) sproto.DeleteJobResponse {
 		return sproto.EmptyDeleteJobResponse()
 	}, nil)
-	mockRM.On("ResolveResourcePool", mock.Anything, mock.Anything, mock.Anything).Return(
+	mockRM.On("ResolveResourcePool", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(
 		func(name string, _, _ int) string {
 			return name
 		},

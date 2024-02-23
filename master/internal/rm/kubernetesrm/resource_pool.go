@@ -212,15 +212,6 @@ func (k *kubernetesResourcePool) MoveJob(msg sproto.MoveJob) error {
 	return k.moveJob(msg.ID, msg.Anchor, msg.Ahead)
 }
 
-func (k *kubernetesResourcePool) DeleteJob(model.JobID) sproto.DeleteJobResponse {
-	k.mu.Lock()
-	defer k.mu.Unlock()
-	k.reschedule = true
-
-	// For now, there is nothing to cleanup in k8s.
-	return sproto.EmptyDeleteJobResponse()
-}
-
 func (k *kubernetesResourcePool) RecoverJobPosition(msg sproto.RecoverJobPosition) {
 	k.mu.Lock()
 	defer k.mu.Unlock()

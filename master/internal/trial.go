@@ -768,7 +768,7 @@ func (t *trial) maybeRestoreAllocation() (*model.Allocation, error) {
 		Where("end_time IS NULL").
 		Where("state != ?", model.AllocationStateTerminated)
 
-	if t.rm.IsReattachableOnlyAfterStarted() {
+	if t.rm.IsReattachableOnlyAfterStarted(t.config.Resources().ResourceManager()) {
 		selectQuery.Where("start_time IS NOT NULL")
 	}
 
@@ -807,9 +807,10 @@ func (t *trial) maybeRestoreAllocation() (*model.Allocation, error) {
 func (t *trial) checkResourcePoolRemainingCapacity() error {
 	launchWarnings, err := t.rm.ValidateResourcePoolAvailability(
 		&sproto.ValidateResourcePoolAvailabilityRequest{
-			Name:   t.config.Resources().ResourcePool(),
-			Slots:  t.config.Resources().SlotsPerTrial(),
-			TaskID: &t.taskID,
+			Name:            t.config.Resources().ResourcePool(),
+			Slots:           t.config.Resources().SlotsPerTrial(),
+			TaskID:          &t.taskID,
+			ResourceManager: t.config.Resources().ResourceManager(),
 		},
 	)
 	if err != nil {

@@ -35,42 +35,53 @@ func (m *Master) ResolveResources(
 	slots int,
 	workspaceID int,
 	isSingleNode bool,
-) (string, []pkgCommand.LaunchWarning, error) {
-	poolName, err := m.rm.ResolveResourcePool(
-		resourcePool, workspaceID, slots)
+) (resolvedRM string, resolvedRP string, warnings []pkgCommand.LaunchWarning, err error) {
+	managerName, poolName, err := m.rm.ResolveResourcePool(sproto.ResolveResourcesRequest{
+		ResourceManager: resourceManager,
+		ResourcePool:    resourcePool,
+		Workspace:       workspaceID,
+		Slots:           slots,
+	})
 	if err != nil {
-		return "", nil, status.Errorf(codes.InvalidArgument, err.Error())
+		return "", "", nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	if err = m.rm.ValidateResources(resourceManager, poolName, slots, isSingleNode); err != nil {
-		return "", nil, fmt.Errorf("validating resources: %v", err)
+	if err = m.rm.ValidateResources(sproto.ValidateResources{
+		ResourceManager: managerName,
+		ResourcePool:    poolName,
+		Slots:           slots,
+		Command:         isSingleNode,
+	}); err != nil {
+		return "", "", nil, fmt.Errorf("validating resources: %v", err)
 	}
 
 	launchWarnings, err := m.rm.ValidateResourcePoolAvailability(
 		&sproto.ValidateResourcePoolAvailabilityRequest{
-			Name:  poolName,
-			Slots: slots,
+			Name:            poolName,
+			Slots:           slots,
+			ResourceManager: managerName,
 		},
 	)
 	if err != nil {
-		return "", launchWarnings, fmt.Errorf("checking resource availability: %v", err.Error())
+		return "", "", launchWarnings, fmt.Errorf("checking resource availability: %v", err.Error())
 	}
 	if m.config.ResourceManager.AgentRM != nil &&
 		m.config.LaunchError &&
 		len(launchWarnings) > 0 {
-		return "", nil, errors.New("slots requested exceeds cluster capacity")
+		return "", "", nil, errors.New("slots requested exceeds cluster capacity")
 	}
 
-	return poolName, launchWarnings, nil
+	return managerName, poolName, launchWarnings, nil
 }
 
 // Fill and return TaskSpec.
 func (m *Master) fillTaskSpec(
+	rmName string,
 	poolName string,
 	agentUserGroup *model.AgentUserGroup,
 	userModel *model.User,
 ) (tasks.TaskSpec, error) {
 	taskContainerDefaults, err := m.rm.TaskContainerDefaults(
-		poolName,
+		rmName, poolName,
 		m.config.TaskContainerDefaults,
 	)
 	if err != nil {

@@ -2963,6 +2963,12 @@ export interface V1Experiment {
      * @memberof V1Experiment
      */
     modelDefinitionSize?: number;
+    /**
+     * The resource manager the experiment was created in
+     * @type {string}
+     * @memberof V1Experiment
+     */
+    resourceManager?: string;
 }
 /**
  * Message for results of individual experiments in a multi-experiment action.
@@ -5008,6 +5014,12 @@ export interface V1Job {
      * @memberof V1Job
      */
     workspaceId: number;
+    /**
+     * Associated resource manager.
+     * @type {string}
+     * @memberof V1Job
+     */
+    resourceManager?: string;
 }
 /**
  * Job summary.
@@ -5513,6 +5525,12 @@ export interface V1LimitedJob {
      * @memberof V1LimitedJob
      */
     workspaceId: number;
+    /**
+     * Associated resource manager.
+     * @type {string}
+     * @memberof V1LimitedJob
+     */
+    resourceManager?: string;
 }
 /**
  * ListRolesRequest is the body of the request for the call to search for a role.
@@ -7951,6 +7969,12 @@ export interface V1QueueControl {
      * @memberof V1QueueControl
      */
     weight?: number;
+    /**
+     * Name of the target resource_manager to move the job to.
+     * @type {string}
+     * @memberof V1QueueControl
+     */
+    resourceManager?: string;
 }
 /**
  * Statistics for a queue.

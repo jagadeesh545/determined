@@ -349,7 +349,7 @@ func (a *apiServer) GetExperiment(
 	}
 
 	jobID := model.JobID(exp.JobId)
-	jobSummary, err := jobservice.DefaultService.GetJobSummary(jobID, exp.ResourcePool)
+	jobSummary, err := jobservice.DefaultService.GetJobSummary(jobID, exp.ResourceManager, exp.ResourcePool)
 	if err != nil {
 		// An error here either is real or just that the experiment was not yet terminal in the DB
 		// when we first queried it but was by the time it got around to handling out ask. We can't
@@ -489,7 +489,7 @@ func (a *apiServer) deleteExperiments(exps []*model.Experiment, userModel *model
 			}
 			if len(checkpoints) > 0 {
 				if err := runCheckpointGCForCheckpoints(
-					a.m.rm, a.m.db, exp.JobID, exp.StartTime,
+					exp.ResourceManager, a.m.rm, a.m.db, exp.JobID, exp.StartTime,
 					&taskSpec, exp.ID, exp.Config, checkpoints,
 					[]string{fullDeleteGlob}, true, agentUserGroup, userModel, nil,
 				); err != nil {
@@ -499,7 +499,7 @@ func (a *apiServer) deleteExperiments(exps []*model.Experiment, userModel *model
 			}
 
 			// delete jobs per experiment
-			resp, err := a.m.rm.DeleteJob(exp.JobID)
+			resp, err := a.m.rm.DeleteJob(exp.ResourceManager, exp.JobID)
 			if err != nil {
 				log.WithError(err).Errorf("requesting cleanup of resource mananger resources")
 				return err
@@ -1284,7 +1284,7 @@ func (a *apiServer) PatchExperiment(
 
 			go func() {
 				if err := runCheckpointGCForCheckpoints(
-					a.m.rm, a.m.db, modelExp.JobID, modelExp.StartTime,
+					modelExp.ResourceManager, a.m.rm, a.m.db, modelExp.JobID, modelExp.StartTime,
 					&taskSpec, modelExp.ID, modelExp.Config, checkpoints,
 					[]string{fullDeleteGlob}, true, agentUserGroup, user, nil,
 				); err != nil {
@@ -3027,7 +3027,7 @@ func (a *apiServer) DeleteTensorboardFiles(
 
 	var uuidList []uuid.UUID
 	err = runCheckpointGCTask(
-		a.m.rm, a.m.db, model.NewTaskID(), exp.JobID, exp.StartTime, *a.m.taskSpec, exp.ID,
+		exp.ResourceManager, a.m.rm, a.m.db, model.NewTaskID(), exp.JobID, exp.StartTime, *a.m.taskSpec, exp.ID,
 		exp.Config, nil, uuidList, nil, true, agentUserGroup, curUser,
 		nil,
 	)
