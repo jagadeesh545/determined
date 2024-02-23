@@ -178,7 +178,7 @@ FOR UPDATE`,
 	needsMerge := existingBodyJSON != nil
 
 	if !needsMerge {
-		id, err := db.addRawMetrics(ctx, tx, mBody, reportTime, runID, trialID, lastProcessedBatch, mGroup)
+		id, err := db.addRawMetrics(ctx, tx, mBody.ToJSONObj(), reportTime, runID, trialID, lastProcessedBatch, mGroup)
 		return id, mBody, err
 	}
 
@@ -223,7 +223,7 @@ RETURNING id`,
 }
 
 // addRawMetrics inserts a set of raw metrics to the database and returns the metric id.
-func (db *PgDB) addRawMetrics(ctx context.Context, tx *sqlx.Tx, mBody *metricsBody,
+func (db *PgDB) addRawMetrics(ctx context.Context, tx *sqlx.Tx, metrics *model.JSONObj,
 	reportTime *time.Time, runID, trialID int32, lastProcessedBatch *int32, mGroup model.MetricGroup,
 ) (int, error) {
 	if err := mGroup.Validate(); err != nil {
@@ -241,7 +241,7 @@ INSERT INTO metrics
 VALUES
 	($1, $2, COALESCE($3, now()), $4, $5, $6, $7)
 RETURNING id`,
-		trialID, runID, reportTime, *mBody.ToJSONObj(), lastProcessedBatch, pType, mGroup,
+		trialID, runID, reportTime, *metrics, lastProcessedBatch, pType, mGroup,
 	).Scan(&metricRowID); err != nil {
 		return metricRowID, errors.Wrap(err, "inserting metrics")
 	}

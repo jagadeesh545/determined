@@ -371,13 +371,12 @@ func (db *PgDB) updateTotalBatches(ctx context.Context, tx *sqlx.Tx, trialID int
 func (db *PgDB) _addTrialProfilingMetricsTx(
 	ctx context.Context, tx *sqlx.Tx, m *trialv1.TrialMetrics, mGroup model.MetricGroup,
 ) (rollbacks int, err error) {
-	mBody := newMetricsBody(m.Metrics.AvgMetrics, m.Metrics.BatchMetrics, false)
-
 	if err := checkTrialRunID(ctx, tx, m.TrialId, m.TrialRunId); err != nil {
 		return rollbacks, err
 	}
 
-	_, err = db.addRawMetrics(ctx, tx, mBody, tryAsTime(m.ReportTime), m.TrialRunId, m.TrialId, nil, mGroup)
+	metrics := model.JSONObj(m.Metrics.AvgMetrics.AsMap())
+	_, err = db.addRawMetrics(ctx, tx, &metrics, tryAsTime(m.ReportTime), m.TrialRunId, m.TrialId, nil, mGroup)
 	return rollbacks, nil
 }
 
