@@ -1032,8 +1032,8 @@ commands:
             sudo pg_ctlcluster 12 main start
             sudo su - postgres -c "psql -c \"
                 CREATE ROLE circleci WITH SUPERUSER LOGIN PASSWORD 'postgres';
-                CREATE DATABASE determined;
             \""
+            sudo su - postgres -c "createdb determined"
           name: Setup postgres server
       - run:
           command: gcloud container clusters get-credentials <<parameters.cluster-id>> --project ${<<parameters.google-project-id>>} --region <<parameters.region>>
