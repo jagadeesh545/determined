@@ -39,10 +39,9 @@ type (
 
 	// SetGroupMaxSlots sets the maximum number of slots that a group can consume in the cluster.
 	SetGroupMaxSlots struct {
-		MaxSlots        *int
-		ResourceManager string
-		ResourcePool    string
-		JobID           model.JobID
+		MaxSlots     *int
+		ResourcePool string
+		JobID        model.JobID
 	}
 )
 

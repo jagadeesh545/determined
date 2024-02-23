@@ -37,7 +37,6 @@ type (
 
 		// Resource configuration.
 		SlotsNeeded         int
-		ResourceManager     string
 		ResourcePool        string
 		FittingRequirements FittingRequirements
 
@@ -73,33 +72,32 @@ type (
 
 	// ResourcesReleased notifies resource providers to return resources from a task.
 	ResourcesReleased struct {
-		AllocationID    model.AllocationID
-		ResourcesID     *ResourcesID
-		ResourcePool    string
-		ResourceManager string
+		AllocationID model.AllocationID
+		ResourcesID  *ResourcesID
+		ResourcePool string
 	}
 	// GetAllocationSummaries returns the summaries of all the tasks in the cluster.
 	GetAllocationSummaries struct{}
 	// AllocationSummary contains information about a task for external display.
 	AllocationSummary struct {
-		TaskID          model.TaskID       `json:"task_id"`
-		AllocationID    model.AllocationID `json:"allocation_id"`
-		Name            string             `json:"name"`
-		RegisteredTime  time.Time          `json:"registered_time"`
-		ResourceManager string             `json:"resource_manager"`
-		ResourcePool    string             `json:"resource_pool"`
-		SlotsNeeded     int                `json:"slots_needed"`
-		Resources       []ResourcesSummary `json:"resources"`
-		SchedulerType   string             `json:"scheduler_type"`
-		Priority        *int               `json:"priority"`
-		ProxyPorts      []*ProxyPortConfig `json:"proxy_ports,omitempty"`
+		TaskID         model.TaskID       `json:"task_id"`
+		AllocationID   model.AllocationID `json:"allocation_id"`
+		Name           string             `json:"name"`
+		RegisteredTime time.Time          `json:"registered_time"`
+		ResourcePool   string             `json:"resource_pool"`
+		SlotsNeeded    int                `json:"slots_needed"`
+		Resources      []ResourcesSummary `json:"resources"`
+		SchedulerType  string             `json:"scheduler_type"`
+		Priority       *int               `json:"priority"`
+		ProxyPorts     []*ProxyPortConfig `json:"proxy_ports,omitempty"`
 	}
 
 	// ValidateCommandResourcesRequest is a message asking resource manager whether the given
 	// resource pool can (or, rather, if it's not impossible to) fulfill the command request
 	// for the given amount of slots.
 	ValidateCommandResourcesRequest struct {
-		Slots int
+		ResourcePool string
+		Slots        int
 	}
 
 	// ValidateCommandResourcesResponse is the response to ValidateCommandResourcesRequest.
@@ -108,14 +106,6 @@ type (
 		// - false: impossible to fulfill
 		// - true: ok or unknown
 		Fulfillable bool
-	}
-
-	// ValidateResources ensures enough resources are available in the resource pool.
-	ValidateResources struct {
-		ResourceManager string
-		ResourcePool    string
-		Slots           int
-		Command         bool
 	}
 )
 
@@ -247,6 +237,10 @@ func (a *AllocationSummary) Proto() *taskv1.AllocationSummary {
 
 // Incoming task actor messages; task actors must accept these messages.
 type (
+	// ChangeRP notifies the task actor that to set itself for a new resource pool.
+	ChangeRP struct {
+		ResourcePool string
+	}
 	// ResourcesAllocated notifies the task actor of assigned resources.
 	ResourcesAllocated struct {
 		ID                model.AllocationID
@@ -255,15 +249,19 @@ type (
 		JobSubmissionTime time.Time
 		Recovered         bool
 	}
+	// PendingPreemption notifies the task actor that it should release
+	// resources due to a pending system-triggered preemption.
+	PendingPreemption struct {
+		AllocationID model.AllocationID
+	}
 
 	// NotifyContainerRunning notifies the launcher (dispatcher) resource
 	// manager that the container is running.
 	NotifyContainerRunning struct {
-		AllocationID    model.AllocationID
-		Rank            int32
-		NumPeers        int32
-		NodeName        string
-		ResourceManager string
+		AllocationID model.AllocationID
+		Rank         int32
+		NumPeers     int32
+		NodeName     string
 	}
 
 	// ReleaseResources notifies the task actor to release resources.
@@ -274,7 +272,6 @@ type (
 		ForcePreemption bool
 		ForceKill       bool
 	}
-
 	// ResourcesRuntimeInfo is all the information provided at runtime to make a task spec.
 	ResourcesRuntimeInfo struct {
 		Token        string

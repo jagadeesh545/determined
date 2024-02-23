@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/determined-ai/determined/master/internal/experiment"
-	"github.com/determined-ai/determined/master/internal/sproto"
 	"github.com/determined-ai/determined/master/internal/workspace"
 
 	"github.com/pkg/errors"
@@ -91,25 +90,22 @@ func (m *Master) restoreExperiment(expModel *model.Experiment) error {
 		return err
 	}
 	workspaceID := resolveWorkspaceID(workspaceModel)
-	managerName, poolName, err := m.rm.ResolveResourcePool(sproto.ResolveResourcesRequest{
-		ResourceManager: activeConfig.Resources().ResourceManager(),
-		ResourcePool:    activeConfig.Resources().ResourcePool(),
-		Workspace:       workspaceID,
-		Slots:           activeConfig.Resources().SlotsPerTrial(),
-	})
+	poolName, err := m.rm.ResolveResourcePool(
+		activeConfig.Resources().ResourcePool(),
+		workspaceID,
+		activeConfig.Resources().SlotsPerTrial(),
+	)
 	if err != nil {
 		return fmt.Errorf("invalid resource configuration: %w", err)
 	}
-	if err = m.rm.ValidateResources(sproto.ValidateResources{
-		ResourceManager: managerName,
-		ResourcePool:    poolName,
-		Slots:           activeConfig.Resources().SlotsPerTrial(),
-		Command:         false,
-	}); err != nil {
+	if err = m.rm.ValidateResources(
+		poolName,
+		activeConfig.Resources().SlotsPerTrial(),
+		false); err != nil {
 		return fmt.Errorf("validating resources: %v", err)
 	}
 	taskContainerDefaults, err := m.rm.TaskContainerDefaults(
-		managerName, poolName,
+		poolName,
 		m.config.TaskContainerDefaults,
 	)
 	if err != nil {
@@ -122,12 +118,6 @@ func (m *Master) restoreExperiment(expModel *model.Experiment) error {
 		return errors.Wrapf(err, "retrieving full user on restart")
 	}
 	taskSpec.Owner = owner
-
-	token, err := user.StartSession(context.Background(), owner)
-	if err != nil {
-		return fmt.Errorf("unable to create user session inside task: %w", err)
-	}
-	taskSpec.UserSessionToken = token
 
 	log.WithField("experiment", expModel.ID).Debug("restoring experiment")
 	snapshot, err := m.retrieveExperimentSnapshot(expModel)

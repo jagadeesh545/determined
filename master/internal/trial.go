@@ -401,7 +401,6 @@ func (t *trial) maybeAllocateTask() error {
 			IsUserVisible:     true,
 			Name:              name,
 			SlotsNeeded:       t.config.Resources().SlotsPerTrial(),
-			ResourceManager:   t.config.Resources().ResourceManager(),
 			ResourcePool:      t.config.Resources().ResourcePool(),
 			FittingRequirements: sproto.FittingRequirements{
 				SingleAgent: isSingleNode,
@@ -446,9 +445,8 @@ func (t *trial) maybeAllocateTask() error {
 		IsUserVisible:     true,
 		Name:              name,
 
-		SlotsNeeded:     t.config.Resources().SlotsPerTrial(),
-		ResourceManager: t.config.Resources().ResourceManager(),
-		ResourcePool:    t.config.Resources().ResourcePool(),
+		SlotsNeeded:  t.config.Resources().SlotsPerTrial(),
+		ResourcePool: t.config.Resources().ResourcePool(),
 		FittingRequirements: sproto.FittingRequirements{
 			SingleAgent: isSingleNode,
 		},
@@ -768,7 +766,7 @@ func (t *trial) maybeRestoreAllocation() (*model.Allocation, error) {
 		Where("end_time IS NULL").
 		Where("state != ?", model.AllocationStateTerminated)
 
-	if t.rm.IsReattachableOnlyAfterStarted(t.config.Resources().ResourceManager()) {
+	if t.rm.IsReattachableOnlyAfterStarted() {
 		selectQuery.Where("start_time IS NOT NULL")
 	}
 
@@ -807,10 +805,9 @@ func (t *trial) maybeRestoreAllocation() (*model.Allocation, error) {
 func (t *trial) checkResourcePoolRemainingCapacity() error {
 	launchWarnings, err := t.rm.ValidateResourcePoolAvailability(
 		&sproto.ValidateResourcePoolAvailabilityRequest{
-			Name:            t.config.Resources().ResourcePool(),
-			Slots:           t.config.Resources().SlotsPerTrial(),
-			TaskID:          &t.taskID,
-			ResourceManager: t.config.Resources().ResourceManager(),
+			Name:   t.config.Resources().ResourcePool(),
+			Slots:  t.config.Resources().SlotsPerTrial(),
+			TaskID: &t.taskID,
 		},
 	)
 	if err != nil {

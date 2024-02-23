@@ -20,7 +20,6 @@ import (
 	"github.com/determined-ai/determined/master/internal/db"
 	expauth "github.com/determined-ai/determined/master/internal/experiment"
 	"github.com/determined-ai/determined/master/internal/project"
-	"github.com/determined-ai/determined/master/internal/sproto"
 	"github.com/determined-ai/determined/master/internal/templates"
 	"github.com/determined-ai/determined/master/internal/user"
 	"github.com/determined-ai/determined/master/internal/workspace"
@@ -296,21 +295,15 @@ func (m *Master) parseCreateExperiment(req *apiv1.CreateExperimentRequest, owner
 	}
 	workspaceID := resolveWorkspaceID(workspaceModel)
 	isSingleNode := resources.IsSingleNode() != nil && *resources.IsSingleNode()
-	managerName, poolName, _, err := m.ResolveResources(resources.ResourceManager(),
-		resources.ResourcePool(), resources.SlotsPerTrial(), workspaceID, isSingleNode)
+	poolName, _, err := m.ResolveResources(resources.ResourcePool(), resources.SlotsPerTrial(), workspaceID, isSingleNode)
 	if err != nil {
 		return nil, nil, config, nil, nil, errors.Wrapf(err, "invalid resource configuration")
 	}
-	if err = m.rm.ValidateResources(sproto.ValidateResources{
-		ResourceManager: managerName,
-		ResourcePool:    poolName,
-		Slots:           resources.SlotsPerTrial(),
-		Command:         isSingleNode,
-	}); err != nil {
+	if err = m.rm.ValidateResources(poolName, resources.SlotsPerTrial(), isSingleNode); err != nil {
 		return nil, nil, config, nil, nil, errors.Wrapf(err, "error validating resources")
 	}
 	taskContainerDefaults, err := m.rm.TaskContainerDefaults(
-		resources.ResourceManager(), poolName,
+		poolName,
 		m.config.TaskContainerDefaults,
 	)
 	if err != nil {

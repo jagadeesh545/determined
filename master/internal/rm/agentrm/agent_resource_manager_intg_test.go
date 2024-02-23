@@ -60,7 +60,7 @@ func TestAgentRMRoutingTaskRelatedMessages(t *testing.T) {
 	}
 
 	// Check if there are tasks.
-	taskSummaries, err := agentRM.GetAllocationSummaries()
+	taskSummaries, err := agentRM.GetAllocationSummaries(sproto.GetAllocationSummaries{})
 	require.NoError(t, err)
 	assert.Equal(t, len(taskSummaries), 0)
 
@@ -95,7 +95,7 @@ func TestAgentRMRoutingTaskRelatedMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check the resource pools of the tasks are correct.
-	taskSummaries, err = agentRM.GetAllocationSummaries()
+	taskSummaries, err = agentRM.GetAllocationSummaries(sproto.GetAllocationSummaries{})
 	require.NoError(t, err)
 	assert.Equal(
 		t,
@@ -118,13 +118,14 @@ func TestAgentRMRoutingTaskRelatedMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check the resource pools of the tasks are correct.
-	taskSummaries, err = agentRM.GetAllocationSummaries()
+	taskSummaries, err = agentRM.GetAllocationSummaries(sproto.GetAllocationSummaries{})
 	require.NoError(t, err)
 	assert.Equal(
 		t,
 		taskSummaries[gpuTask1.ID].ResourcePool,
 		taskSummaries[gpuTask2.ID].ResourcePool,
 	)
+
 	// Let the CPU task actors release resources.
 	agentRM.Release(
 		sproto.ResourcesReleased{
@@ -136,7 +137,7 @@ func TestAgentRMRoutingTaskRelatedMessages(t *testing.T) {
 		AllocationID: cpuTask2.ID,
 		ResourcePool: taskSummaries[cpuTask2.ID].ResourcePool,
 	})
-	taskSummaries, err = agentRM.GetAllocationSummaries()
+	taskSummaries, err = agentRM.GetAllocationSummaries(sproto.GetAllocationSummaries{})
 	require.NoError(t, err)
 	assert.Equal(t, len(taskSummaries), 2)
 
@@ -149,7 +150,7 @@ func TestAgentRMRoutingTaskRelatedMessages(t *testing.T) {
 		AllocationID: gpuTask2.ID,
 		ResourcePool: taskSummaries[gpuTask2.ID].ResourcePool,
 	})
-	taskSummaries, err = agentRM.GetAllocationSummaries()
+	taskSummaries, err = agentRM.GetAllocationSummaries(sproto.GetAllocationSummaries{})
 	require.NoError(t, err)
 	assert.Equal(t, len(taskSummaries), 0)
 

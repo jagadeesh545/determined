@@ -127,7 +127,7 @@ func (k *kubernetesResourcePool) UpdatePodStatus(msg sproto.UpdatePodStatus) {
 	}
 }
 
-func (k *kubernetesResourcePool) PendingPreemption(model.AllocationID) error {
+func (k *kubernetesResourcePool) PendingPreemption(msg sproto.PendingPreemption) error {
 	return rmerrors.ErrNotSupported
 }
 
@@ -220,7 +220,9 @@ func (k *kubernetesResourcePool) RecoverJobPosition(msg sproto.RecoverJobPositio
 	k.queuePositions.RecoverJobPosition(msg.JobID, msg.JobPosition)
 }
 
-func (k *kubernetesResourcePool) GetAllocationSummaries() map[model.AllocationID]sproto.AllocationSummary {
+func (k *kubernetesResourcePool) GetAllocationSummaries(
+	msg sproto.GetAllocationSummaries,
+) map[model.AllocationID]sproto.AllocationSummary {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 

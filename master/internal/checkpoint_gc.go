@@ -18,7 +18,6 @@ import (
 	"github.com/determined-ai/determined/master/internal/sproto"
 	"github.com/determined-ai/determined/master/internal/storage"
 	"github.com/determined-ai/determined/master/internal/task"
-	"github.com/determined-ai/determined/master/internal/user"
 	"github.com/determined-ai/determined/master/pkg/logger"
 	"github.com/determined-ai/determined/master/pkg/model"
 	"github.com/determined-ai/determined/master/pkg/protoutils/protoconverter"
@@ -29,7 +28,6 @@ import (
 const fullDeleteGlob = "**/*"
 
 func runCheckpointGCForCheckpoints(
-	rmName string,
 	rm rm.ResourceManager,
 	db *db.PgDB,
 	jobID model.JobID,
@@ -55,7 +53,7 @@ func runCheckpointGCForCheckpoints(
 		wg.Go(func() error {
 			taskID := model.TaskID(fmt.Sprintf("%d.%s", expID, uuid.New()))
 			if err := runCheckpointGCTask(
-				rmName, rm, db, taskID, jobID, jobSubmissionTime, *taskSpec,
+				rm, db, taskID, jobID, jobSubmissionTime, *taskSpec,
 				expID, legacyConfig, g.StorageID, g.Checkpoints,
 				checkpointGlobs, deleteTensorboards,
 				agentUserGroup, owner, logCtx,
@@ -75,7 +73,6 @@ func runCheckpointGCForCheckpoints(
 }
 
 func runCheckpointGCTask(
-	rmName string,
 	rm rm.ResourceManager,
 	pgDB *db.PgDB,
 	taskID model.TaskID,
@@ -101,12 +98,7 @@ func runCheckpointGCTask(
 		return nil
 	}
 
-	resolvedRM, rp, err := rm.ResolveResourcePool(sproto.ResolveResourcesRequest{
-		ResourceManager: rmName,
-		ResourcePool:    "",
-		Workspace:       -1,
-		Slots:           0,
-	})
+	rp, err := rm.ResolveResourcePool("", -1, 0)
 	if err != nil {
 		return fmt.Errorf("resolving resource pool: %w", err)
 	}
@@ -114,18 +106,13 @@ func runCheckpointGCTask(
 	// t.Base is just a shallow copy of the m.taskSpec on the master, so
 	// use caution when mutating it.
 	tcd, err := rm.TaskContainerDefaults(
-		resolvedRM, rp,
+		rp,
 		config.GetMasterConfig().TaskContainerDefaults)
 	if err != nil {
 		return fmt.Errorf("creating task container defaults: %v", err)
 	}
 	taskSpec.TaskContainerDefaults = tcd
 
-	userSessionToken, err := user.StartSession(context.TODO(), owner)
-	if err != nil {
-		return errors.Wrapf(err, "unable to create user session for checkpoint gc")
-	}
-	taskSpec.UserSessionToken = userSessionToken
 	taskSpec.AgentUserGroup = agentUserGroup
 	taskSpec.Owner = owner
 
@@ -189,8 +176,7 @@ func runCheckpointGCTask(
 		FittingRequirements: sproto.FittingRequirements{
 			SingleAgent: true,
 		},
-		ResourceManager: resolvedRM,
-		ResourcePool:    rp,
+		ResourcePool: rp,
 	}, pgDB, rm, gcSpec, onExit)
 	if err != nil {
 		return err

@@ -495,7 +495,7 @@ func TestStartError(t *testing.T) {
 
 	var rm mocks.ResourceManager
 	expectedErr := fmt.Errorf("rm crashed")
-	rm.On("Allocate", mock.Anything).Return(nil, expectedErr)
+	rm.On("Allocate", mock.Anything, mock.Anything).Return(nil, expectedErr)
 
 	taskModel := db.RequireMockTask(t, pgDB, nil)
 	ar := stubAllocateRequest(taskModel)
@@ -595,19 +595,15 @@ func requireStarted(t *testing.T, opts ...func(*sproto.AllocateRequest)) (
 
 func stubAllocateRequest(task *model.Task) sproto.AllocateRequest {
 	return sproto.AllocateRequest{
-		TaskID:          task.TaskID,
-		AllocationID:    model.AllocationID(fmt.Sprintf("%s.0", task.TaskID)),
-		SlotsNeeded:     2,
-		Preemptible:     true,
-		ResourceManager: stubResourceManagerName,
-		ResourcePool:    stubResourcePoolName,
+		TaskID:       task.TaskID,
+		AllocationID: model.AllocationID(fmt.Sprintf("%s.0", task.TaskID)),
+		SlotsNeeded:  2,
+		Preemptible:  true,
+		ResourcePool: stubResourcePoolName,
 	}
 }
 
-var (
-	stubResourcePoolName    = "default"
-	stubResourceManagerName = "default"
-)
+var stubResourcePoolName = "default"
 
 var stubAgentName = aproto.ID("agentx")
 
