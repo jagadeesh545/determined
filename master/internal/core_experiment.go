@@ -295,11 +295,13 @@ func (m *Master) parseCreateExperiment(req *apiv1.CreateExperimentRequest, owner
 	}
 	workspaceID := resolveWorkspaceID(workspaceModel)
 	isSingleNode := resources.IsSingleNode() != nil && *resources.IsSingleNode()
-	poolName, _, err := m.ResolveResources(resources.ResourcePool(), resources.SlotsPerTrial(), workspaceID, isSingleNode)
+	poolName, _, err := m.ResolveResources(resources.ResourceManager(),
+		resources.ResourcePool(), resources.SlotsPerTrial(), workspaceID, isSingleNode)
 	if err != nil {
 		return nil, nil, config, nil, nil, errors.Wrapf(err, "invalid resource configuration")
 	}
-	if err = m.rm.ValidateResources(poolName, resources.SlotsPerTrial(), isSingleNode); err != nil {
+	if err = m.rm.ValidateResources(resources.ResourceManager(),
+		poolName, resources.SlotsPerTrial(), isSingleNode); err != nil {
 		return nil, nil, config, nil, nil, errors.Wrapf(err, "error validating resources")
 	}
 	taskContainerDefaults, err := m.rm.TaskContainerDefaults(

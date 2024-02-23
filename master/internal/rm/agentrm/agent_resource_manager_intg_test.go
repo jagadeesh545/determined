@@ -127,29 +127,19 @@ func TestAgentRMRoutingTaskRelatedMessages(t *testing.T) {
 	)
 
 	// Let the CPU task actors release resources.
-	agentRM.Release(
-		sproto.ResourcesReleased{
-			AllocationID: cpuTask1.ID,
-			ResourcePool: taskSummaries[cpuTask1.ID].ResourcePool,
-		},
-	)
-	agentRM.Release(sproto.ResourcesReleased{
-		AllocationID: cpuTask2.ID,
-		ResourcePool: taskSummaries[cpuTask2.ID].ResourcePool,
-	})
+	resources1 := sproto.ResourcesID(cpuTask1.ID)
+	resources2 := sproto.ResourcesID(cpuTask2.ID)
+	agentRM.Release(sproto.AllocateRequest{ResourcePool: taskSummaries[cpuTask1.ID].ResourcePool}, &resources1)
+	agentRM.Release(sproto.AllocateRequest{ResourcePool: taskSummaries[cpuTask2.ID].ResourcePool}, &resources2)
 	taskSummaries, err = agentRM.GetAllocationSummaries()
 	require.NoError(t, err)
 	assert.Equal(t, len(taskSummaries), 2)
 
 	// Let the GPU task actors release resources.
-	agentRM.Release(sproto.ResourcesReleased{
-		AllocationID: gpuTask1.ID,
-		ResourcePool: taskSummaries[gpuTask1.ID].ResourcePool,
-	})
-	agentRM.Release(sproto.ResourcesReleased{
-		AllocationID: gpuTask2.ID,
-		ResourcePool: taskSummaries[gpuTask2.ID].ResourcePool,
-	})
+	resources1 = sproto.ResourcesID(gpuTask1.ID)
+	resources2 = sproto.ResourcesID(gpuTask2.ID)
+	agentRM.Release(sproto.AllocateRequest{ResourcePool: taskSummaries[gpuTask1.ID].ResourcePool}, &resources1)
+	agentRM.Release(sproto.AllocateRequest{ResourcePool: taskSummaries[gpuTask2.ID].ResourcePool}, &resources2)
 	taskSummaries, err = agentRM.GetAllocationSummaries()
 	require.NoError(t, err)
 	assert.Equal(t, len(taskSummaries), 0)

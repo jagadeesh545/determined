@@ -564,10 +564,7 @@ func (a *allocation) finalize(
 	severity logrus.Level,
 	exitErr error,
 ) {
-	defer a.rm.Release(sproto.ResourcesReleased{
-		AllocationID: a.req.AllocationID,
-		ResourcePool: a.req.ResourcePool,
-	})
+	defer a.rm.Release(a.req, nil)
 	for _, cl := range a.closers {
 		defer cl()
 	}
@@ -789,11 +786,7 @@ func (a *allocation) resourcesStateChanged(msg *sproto.ResourcesStateChanged) {
 		a.resources[msg.ResourcesID].Exited = msg.ResourcesStopped
 
 		a.syslog.Infof("releasing resources %s", msg.ResourcesID)
-		a.rm.Release(sproto.ResourcesReleased{
-			AllocationID: a.req.AllocationID,
-			ResourcesID:  &msg.ResourcesID,
-			ResourcePool: a.req.ResourcePool,
-		})
+		a.rm.Release(a.req, &msg.ResourcesID)
 
 		if err := a.resources[msg.ResourcesID].Persist(); err != nil {
 			a.crash(err)

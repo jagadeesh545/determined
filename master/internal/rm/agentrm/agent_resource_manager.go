@@ -393,14 +393,18 @@ func (a *ResourceManager) RecoverJobPosition(msg sproto.RecoverJobPosition) {
 }
 
 // Release implements rm.ResourceManager.
-func (a *ResourceManager) Release(msg sproto.ResourcesReleased) {
-	pool, err := a.poolByName(msg.ResourcePool)
+func (a *ResourceManager) Release(req sproto.AllocateRequest, resourceID *sproto.ResourcesID) {
+	pool, err := a.poolByName(req.ResourcePool)
 	if err != nil {
 		a.syslog.WithError(err).Warnf("release found no resource pool with name %s",
-			msg.ResourcePool)
+			req.ResourcePool)
 		return
 	}
-	pool.ResourcesReleased(msg)
+	pool.ResourcesReleased(sproto.ResourcesReleased{
+		AllocationID: req.AllocationID,
+		ResourcesID:  resourceID,
+		ResourcePool: req.ResourcePool,
+	})
 }
 
 // ResolveResourcePool implements rm.ResourceManager.
@@ -542,7 +546,7 @@ func (a *ResourceManager) ValidateResourcePoolAvailability(
 }
 
 // ValidateResources implements rm.ResourceManager.
-func (a *ResourceManager) ValidateResources(rp string, slots int, command bool) error {
+func (a *ResourceManager) ValidateResources(rm, rp string, slots int, command bool) error {
 	if slots > 0 && command {
 		pool, err := a.poolByName(rp)
 		if err != nil {

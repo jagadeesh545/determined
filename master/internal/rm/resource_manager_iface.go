@@ -12,10 +12,10 @@ import (
 type ResourceManager interface {
 	// Basic functionality
 	GetAllocationSummaries() (map[model.AllocationID]sproto.AllocationSummary, error)
-	Allocate(sproto.AllocateRequest) (*sproto.ResourcesSubscription, error)
-	Release(sproto.ResourcesReleased)
-	ValidateResources(rp string, slots int, command bool) error
-	DeleteJob(model.JobID) (sproto.DeleteJobResponse, error)
+	Allocate(req sproto.AllocateRequest) (*sproto.ResourcesSubscription, error)
+	Release(req sproto.AllocateRequest, resourceID *sproto.ResourcesID)
+	ValidateResources(rm, rp string, slots int, command bool) error
+	DeleteJob(rm string, jobID model.JobID) (sproto.DeleteJobResponse, error)
 	NotifyContainerRunning(sproto.NotifyContainerRunning) error
 
 	// Scheduling related stuff

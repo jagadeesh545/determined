@@ -97,6 +97,7 @@ func (a *apiServer) getCommandLaunchParams(ctx context.Context, req *protoComman
 	}
 
 	poolName, launchWarnings, err := a.m.ResolveResources(
+		resources.ResourceManager,
 		resources.ResourcePool,
 		resources.Slots,
 		int(cmdSpec.Metadata.WorkspaceID),

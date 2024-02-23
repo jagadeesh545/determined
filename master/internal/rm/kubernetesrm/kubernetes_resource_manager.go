@@ -308,14 +308,18 @@ func (k *ResourceManager) RecoverJobPosition(msg sproto.RecoverJobPosition) {
 }
 
 // Release implements rm.ResourceManager.
-func (k *ResourceManager) Release(msg sproto.ResourcesReleased) {
-	rp, err := k.poolByName(msg.ResourcePool)
+func (k *ResourceManager) Release(req sproto.AllocateRequest, resourceID *sproto.ResourcesID) {
+	rp, err := k.poolByName(req.ResourcePool)
 	if err != nil {
 		k.syslog.WithError(err).Warnf("release found no resource pool with name %s",
-			msg.ResourcePool)
+			req.ResourcePool)
 		return
 	}
-	rp.ResourcesReleased(msg)
+	rp.ResourcesReleased(sproto.ResourcesReleased{
+		AllocationID: req.AllocationID,
+		ResourcesID:  resourceID,
+		ResourcePool: req.ResourcePool,
+	})
 }
 
 // SetGroupMaxSlots implements rm.ResourceManager.
@@ -431,7 +435,7 @@ func (k ResourceManager) ResolveResourcePool(
 
 // ValidateResources ensures enough resources are available in the resource pool.
 // This is a no-op for k8s.
-func (k ResourceManager) ValidateResources(name string, slots int, command bool) error {
+func (k ResourceManager) ValidateResources(rmName, rpName string, slots int, command bool) error {
 	return nil
 }
 

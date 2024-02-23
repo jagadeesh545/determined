@@ -30,6 +30,7 @@ import (
 
 // ResolveResources - Validate ResoucePool and check for availability.
 func (m *Master) ResolveResources(
+	resourceManager string,
 	resourcePool string,
 	slots int,
 	workspaceID int,
@@ -40,7 +41,7 @@ func (m *Master) ResolveResources(
 	if err != nil {
 		return "", nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
-	if err = m.rm.ValidateResources(poolName, slots, isSingleNode); err != nil {
+	if err = m.rm.ValidateResources(resourceManager, poolName, slots, isSingleNode); err != nil {
 		return "", nil, fmt.Errorf("validating resources: %v", err)
 	}
 

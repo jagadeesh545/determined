@@ -103,7 +103,9 @@ func (a *apiServer) getGenericTaskLaunchParameters(
 		return nil, nil, nil, fmt.Errorf("resource slots must be >= 0")
 	}
 	isSingleNode := resources.IsSingleNode != nil && *resources.IsSingleNode
-	poolName, launchWarnings, err := a.m.ResolveResources(resources.ResourcePool,
+	poolName, launchWarnings, err := a.m.ResolveResources(
+		resources.ResourceManager,
+		resources.ResourcePool,
 		resources.Slots,
 		int(proj.WorkspaceId),
 		isSingleNode)
